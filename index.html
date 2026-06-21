@@ -474,7 +474,7 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 
     <!-- Signature - AFTER photos -->
     <div class="sec">
-      <div class="sec-header"><div class="sec-icon">✍️</div><p class="sec-title">Signature</p></div>
+      <div class="sec-header"><div class="sec-icon">✍️</div><p class="sec-title">This RPC Technical Audit is prepared by:</p></div>
       <div id="sig-box" class="sig-box" onclick="openSig()"><p>✍️ Tap / click to sign</p></div>
       <div id="sig-input-wrap" style="display:none;margin-top:8px">
         <input type="text" class="sig-inp" id="sig-input" placeholder="Type full name as signature"/>
@@ -623,18 +623,18 @@ function buildAreaDetailHTML(item, id, isCustom) {
       + '<label class="lbl">Findings</label>'
       + '<textarea id="findings-'+id+'" placeholder="Describe what was found in this area, such as pest activity, evidence, or hotspots..."></textarea>'
     + '</div>'
-    + '<div class="field-wrap">'
-      + '<label class="lbl">Recommendations</label>'
-      + '<textarea id="reco-'+id+'" placeholder="Actions to be taken for this area, such as treatments, structural fixes, or hygiene improvements..."></textarea>'
-    + '</div>'
     + (isCustom ? '' :
       '<div class="field-wrap">'
         + '<label class="lbl">Action Taken by RPC</label>'
         + '<textarea id="action-taken-'+id+'" placeholder="Actions RPC has already taken for this area, such as treatments applied, repairs made, or equipment installed..."></textarea>'
       + '</div>')
     + '<div class="field-wrap">'
-      + '<label class="lbl">Action Required by RPC</label>'
+      + '<label class="lbl">Further Action Required by RPC</label>'
       + '<textarea id="action-'+id+'" placeholder="Actions RPC will undertake for this area, such as follow-up treatments, scheduled visits, or equipment installation..."></textarea>'
+    + '</div>'
+    + '<div class="field-wrap">'
+      + '<label class="lbl">Recommendation for Client Action</label>'
+      + '<textarea id="reco-'+id+'" placeholder="Actions to be taken for this area, such as treatments, structural fixes, or hygiene improvements..."></textarea>'
     + '</div>'
     + '<div class="field-wrap" style="margin-bottom:0">'
       + '<label class="lbl">Photos</label>'
@@ -807,7 +807,7 @@ function renderPestTrends() {
   selectedPests.forEach(pest => {
     const id = slug(pest);
     const data = pestTrends[pest] || { score: 5, trend: '', notes: '', monthly: defaultMonthly() };
-    if (!data.monthly) data.monthly = defaultMonthly();
+    if (!data.monthly || data.monthly.length !== 12) data.monthly = defaultMonthly();
     const block = document.createElement('div');
     block.className = 'pest-trend-block';
     block.dataset.pest = pest;
@@ -877,9 +877,33 @@ function unslug(id) {
   return selectedPests.find(p => slug(p) === id) || '';
 }
 
+// Takes the 12 grid rows (always in fixed Jan-Dec position order, each with its own
+// supervisor-set year) and returns them reordered chronologically by actual Year+Month,
+// so a contract like Mar 2026 - Feb 2027 plots left-to-right in real calendar order
+// even though the data-entry grid itself always stays Jan-Dec.
+function sortMonthlyChronologically(monthly) {
+  const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return monthly
+    .map((md, i) => ({ ...md, monthIdx: i, shortLabel: MONTH_SHORT[i], sortKey: (parseInt(md.year,10) || 0) * 12 + i }))
+    .sort((a, b) => a.sortKey - b.sortKey);
+}
+
+// Returns a label like "2026" or "2026-2027" covering only the months that actually have
+// an activity value entered, so the PDF can show the real contract year span at a glance.
+function getMonthlyYearRangeLabel(monthly) {
+  const years = (monthly||[])
+    .filter(md => md.value !== '' && md.value != null)
+    .map(md => parseInt(md.year,10))
+    .filter(y => !isNaN(y));
+  if (!years.length) return '';
+  const min = Math.min(...years), max = Math.max(...years);
+  return min === max ? String(min) : (min+'-'+max);
+}
+
 function drawMonthlyChart(id, monthly) {
   const canvas = document.getElementById('chart-'+id);
   if (!canvas) return;
+  const sorted = sortMonthlyChronologically(monthly);
   const dpr = window.devicePixelRatio || 1;
   const w = canvas.clientWidth || 300, h = 140;
   canvas.width = w*dpr; canvas.height = h*dpr;
@@ -901,7 +925,7 @@ function drawMonthlyChart(id, monthly) {
   });
 
   // bars
-  monthly.forEach((md,i) => {
+  sorted.forEach((md,i) => {
     const val = Math.max(0, Math.min(20, parseFloat(md.value)||0));
     if (!md.value) return;
     const barH = (Math.min(val,maxVal)/maxVal)*chartH;
@@ -918,17 +942,17 @@ function drawMonthlyChart(id, monthly) {
   ctx.beginPath(); ctx.moveTo(padL, etlY); ctx.lineTo(w-padR, etlY); ctx.stroke();
   ctx.setLineDash([]);
 
-  // month labels
+  // month labels (reflect the sorted chronological order)
   ctx.fillStyle = '#64748b'; ctx.font = '8px sans-serif'; ctx.textAlign = 'center';
-  const shortMonths = ['J','F','M','A','M','J','J','A','S','O','N','D'];
-  shortMonths.forEach((m,i) => {
+  sorted.forEach((md,i) => {
     const x = padL + i*barW + barW/2;
-    ctx.fillText(m, x, h-4);
+    ctx.fillText(md.shortLabel.slice(0,1), x, h-4);
   });
   ctx.textAlign = 'left';
 }
 
 function getMonthlyChartSnapshot(monthly) {
+  const sorted = sortMonthlyChronologically(monthly);
   const W = 700, H = 220;
   const canvas = document.createElement('canvas');
   canvas.width = W; canvas.height = H;
@@ -947,7 +971,7 @@ function getMonthlyChartSnapshot(monthly) {
     ctx.fillText(String(v), 4, y+4);
   });
 
-  monthly.forEach((md,i) => {
+  sorted.forEach((md,i) => {
     const val = Math.max(0, Math.min(20, parseFloat(md.value)||0));
     if (!md.value) return;
     const barH = (Math.min(val,maxVal)/maxVal)*chartH;
@@ -964,10 +988,9 @@ function getMonthlyChartSnapshot(monthly) {
   ctx.setLineDash([]);
 
   ctx.fillStyle = '#475569'; ctx.font = '12px sans-serif'; ctx.textAlign = 'center';
-  const shortMonths = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  shortMonths.forEach((m,i) => {
+  sorted.forEach((md,i) => {
     const x = padL + i*barW + barW/2;
-    ctx.fillText(m, x, H-10);
+    ctx.fillText(md.shortLabel+' '+(md.year||''), x, H-10);
   });
   ctx.textAlign = 'left';
   return canvas.toDataURL('image/png');
@@ -1707,7 +1730,7 @@ function submitAudit() {
         badge = '<span class="risk-badge" style="background:rgb('+r+','+g+','+b+')">'+risk+'</span>';
       }
       summary.innerHTML += '<p class="sum-sec" style="margin-top:10px">'+areaLabel(item)+' <span style="float:right">'+badge+'</span></p>';
-      summary.innerHTML += row('Findings', findings) + row('Recommendations', reco) + row('Action Taken by RPC', actionTaken) + row('Action Required by RPC', action);
+      summary.innerHTML += row('Findings', findings) + row('Action Taken by RPC', actionTaken) + row('Further Action Required by RPC', action) + row('Recommendation for Client Action', reco);
       const photos = areaPhotos[id] || [];
       summary.innerHTML += row('Photos', photos.length ? (photos.length+' photo'+(photos.length>1?'s':'')+' attached') : 'No photos attached');
     });
@@ -1724,7 +1747,7 @@ function submitAudit() {
         badge = '<span class="risk-badge" style="background:rgb('+r+','+g+','+b+')">'+risk+'</span>';
       }
       summary.innerHTML += '<p class="sum-sec" style="margin-top:10px">'+name+' <span style="float:right">'+badge+'</span></p>';
-      summary.innerHTML += row('Findings', findings) + row('Recommendations', reco) + row('Action Required by RPC', action);
+      summary.innerHTML += row('Findings', findings) + row('Further Action Required by RPC', action) + row('Recommendation for Client Action', reco);
       const photos = areaPhotos[id] || [];
       summary.innerHTML += row('Photos', photos.length ? (photos.length+' photo'+(photos.length>1?'s':'')+' attached') : 'No photos attached');
     });
@@ -1878,14 +1901,6 @@ async function downloadPDF() {
           const ls=doc.splitTextToSize(findings,W-2*M-8);
           doc.text(ls,M+8,y+4.5); y+=4.5+ls.length*4.5;
         }
-        if (reco) {
-          if (y>272){doc.addPage();y=20;}
-          doc.setFont('helvetica','bold'); doc.setTextColor(100,116,139);
-          doc.text('Recommendations:',M+8,y);
-          doc.setFont('helvetica','normal'); doc.setTextColor(15,23,42);
-          const ls=doc.splitTextToSize(reco,W-2*M-8);
-          doc.text(ls,M+8,y+4.5); y+=4.5+ls.length*4.5;
-        }
         if (actionTaken) {
           if (y>272){doc.addPage();y=20;}
           doc.setFont('helvetica','bold'); doc.setTextColor(100,116,139);
@@ -1897,9 +1912,17 @@ async function downloadPDF() {
         if (action) {
           if (y>272){doc.addPage();y=20;}
           doc.setFont('helvetica','bold'); doc.setTextColor(100,116,139);
-          doc.text('Action Required by RPC:',M+8,y);
+          doc.text('Further Action Required by RPC:',M+8,y);
           doc.setFont('helvetica','normal'); doc.setTextColor(15,23,42);
           const ls=doc.splitTextToSize(action,W-2*M-8);
+          doc.text(ls,M+8,y+4.5); y+=4.5+ls.length*4.5;
+        }
+        if (reco) {
+          if (y>272){doc.addPage();y=20;}
+          doc.setFont('helvetica','bold'); doc.setTextColor(100,116,139);
+          doc.text('Recommendation for Client Action:',M+8,y);
+          doc.setFont('helvetica','normal'); doc.setTextColor(15,23,42);
+          const ls=doc.splitTextToSize(reco,W-2*M-8);
           doc.text(ls,M+8,y+4.5); y+=4.5+ls.length*4.5;
         }
         const photos = areaPhotos[id] || [];
@@ -1974,8 +1997,9 @@ async function downloadPDF() {
           if (monthsEntered > 0) {
             const chartW = W-2*M, chartH = chartW*(220/700);
             if (y+chartH > 280){doc.addPage();y=20;}
+            const yearRange = getMonthlyYearRangeLabel(t.monthly);
             doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor(100,116,139);
-            doc.text('Monthly Activity (red dashed line = ETL threshold of 10)', M, y); y+=4;
+            doc.text('Monthly Activity'+(yearRange?' ('+yearRange+')':'')+' — red dashed line = ETL threshold of 10', M, y); y+=4;
             try { doc.addImage(getMonthlyChartSnapshot(t.monthly), 'PNG', M, y, chartW, chartH); } catch(e){}
             doc.setDrawColor(226,232,240); doc.setLineWidth(0.3); doc.rect(M,y,chartW,chartH);
             y += chartH + 4;
