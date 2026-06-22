@@ -2057,7 +2057,7 @@ async function downloadPDF() {
     const sig=document.getElementById('sig-input').value.trim();
     if(sig){
       if(y>245){doc.addPage();y=20;}
-      secTitle('SIGNATURE');
+      secTitle('THIS RPC TECHNICAL AUDIT IS PREPARED BY:');
       doc.setFontSize(15); doc.setFont('helvetica','bolditalic'); doc.setTextColor(10,22,40);
       doc.text(sig,M,y+4);
       doc.setDrawColor(37,99,235); doc.setLineWidth(0.5); doc.line(M,y+10,M+80,y+10);
