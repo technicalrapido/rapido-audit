@@ -83,6 +83,11 @@ textarea{min-height:80px;resize:vertical;}
 /* CHIPS */
 .chips{display:flex;flex-wrap:wrap;gap:7px;}
 .chip{padding:6px 12px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--gray200);background:#fff;color:var(--gray600);transition:all .15s;}
+.chip-other{border-style:dashed;border-color:var(--blue-mid);color:var(--blue2);background:var(--blue-lt);}
+.chip-other.on{background:var(--blue2);color:#fff;border-color:var(--blue2);border-style:solid;}
+.other-pest-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
+.other-pest-row .gform-input{flex:1;margin-bottom:0;}
+.other-pest-del{background:none;border:none;color:var(--red);font-size:20px;cursor:pointer;line-height:1;padding:0 4px;flex-shrink:0;}
 .chip.on{border-color:var(--blue2);background:var(--blue-lt);color:var(--blue);box-shadow:0 0 0 1px var(--blue2);}
 
 /* GOOGLE FORMS STYLE FIELD */
@@ -184,15 +189,34 @@ input[type=file]{display:none;}
 .pmap-text-panel .pmap-rot-val{font-size:11.5px;font-weight:700;color:var(--blue2);width:42px;text-align:right;flex-shrink:0;}
 
 /* SIGNATURE */
-.sig-box{border:2px dashed var(--gray400);border-radius:10px;padding:14px;background:var(--gray50);text-align:center;cursor:pointer;transition:all .15s;}
-.sig-box:hover{border-color:var(--blue2);background:var(--blue-lt);}
-.sig-box p{color:var(--gray400);font-size:13px;}
+/* STAFF ID + QR SECTION */
+.prepared-wrap{border:1.5px solid var(--gray200);border-radius:12px;overflow:hidden;background:#fff;}
+.prepared-left{padding:14px;}
+.staff-id-left-inner{display:flex;flex-direction:column;align-items:center;gap:12px;}
+.staff-id-circle-container{position:relative;width:100px;height:100px;}
+.staff-id-circle-wrap{width:100px;height:100px;min-width:100px;border-radius:50%;border:2.5px dashed var(--blue-mid);background:var(--gray50);cursor:pointer;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:border-color .15s;}
+.staff-id-remove{display:none;position:absolute;top:2px;right:2px;width:22px;height:22px;border-radius:50%;background:#dc2626;color:#fff;border:2px solid #fff;font-size:16px;font-weight:700;line-height:1;cursor:pointer;align-items:center;justify-content:center;z-index:10;padding:0;}
+.staff-id-remove.visible{display:flex;}
+.staff-id-circle-wrap:hover{border-color:var(--blue2);}
+.staff-id-circle-wrap img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;display:none;}
+.staff-id-circle-wrap.has-photo img{display:block;}
+.staff-id-circle-wrap.has-photo .staff-id-circle-hint{display:none;}
+.staff-id-circle-hint{text-align:center;font-size:10px;color:var(--gray400);line-height:1.5;padding:4px;}
+.staff-id-circle-hint span{font-size:9.5px;}
+.staff-id-fields{width:100%;}
+.qr-heading{font-size:9.5px;font-weight:800;color:var(--blue2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;line-height:1.3;width:100%;text-align:center;}
+.prepared-link-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:10px 8px;background:#dbeafe;border-radius:8px;border:1.5px solid var(--blue-mid);width:100%;box-sizing:border-box;}
+.prepared-link-icon{font-size:22px;}
+.prepared-link{font-size:11px;font-weight:700;color:var(--blue2);word-break:break-all;text-decoration:none;line-height:1.4;text-align:center;display:block;width:100%;}
+.prepared-link:hover{text-decoration:underline;}
 .sig-inp{width:100%;padding:10px 11px;border-radius:8px;border:1.5px solid var(--gray200);font-size:16px;font-style:italic;margin-bottom:8px;font-family:Georgia,serif;color:var(--navy);}
 .sig-confirm{width:100%;padding:10px;background:var(--blue2);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;}
 
 /* BUTTONS */
 .submit-btn{width:100%;padding:14px;background:linear-gradient(135deg,var(--navy),var(--blue2));color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;margin-top:4px;letter-spacing:.3px;box-shadow:0 4px 14px rgba(30,64,175,.3);}
 .submit-btn:active{opacity:.9;}
+.reset-btn:active{background:var(--gray100);}
+.app-footer{text-align:center;font-size:11px;color:var(--gray400);margin-top:18px;margin-bottom:4px;letter-spacing:.2px;}
 .pdf-btn{width:100%;padding:13px;background:linear-gradient(135deg,#1e3a6e,var(--blue2));color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 12px rgba(37,99,235,.3);}
 .pdf-btn:disabled{opacity:.6;}
 .new-btn{width:100%;padding:12px;background:var(--navy);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;margin-top:9px;}
@@ -267,9 +291,9 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 
   <div class="form-wrap">
 
-    <!-- Report Identity -->
+    <!-- Report Details -->
     <div class="sec">
-      <div class="sec-header"><div class="sec-icon">🔢</div><p class="sec-title">Report Identity</p></div>
+      <div class="sec-header"><div class="sec-icon">🔢</div><p class="sec-title">Report Details</p></div>
       <div class="row2">
         <div class="field-wrap">
           <label class="lbl">Report No. *</label>
@@ -339,22 +363,16 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 
     <!-- Pest Issue -->
     <div class="sec">
-      <div class="sec-header"><div class="sec-icon">🐞</div><p class="sec-title">PEST ISSUE IDENTIFIED (COVERED)</p></div>
+      <div class="sec-header"><div class="sec-icon">🐞</div><p class="sec-title">PEST ISSUE(S) IDENTIFIED (COVERED)</p></div>
       <div class="chips" id="pest-chips"></div>
-      <div class="gform-field">
-        <p class="gform-label">If 'Other' pest, please specify:</p>
-        <input type="text" class="gform-input" id="a-pest-other" placeholder="Your answer" oninput="updateSelectedPests()"/>
-      </div>
+      <div id="pest-other-list" style="margin-top:8px"></div>
     </div>
 
     <!-- Pest Not Covered -->
     <div class="sec">
-      <div class="sec-header"><div class="sec-icon">🚫</div><p class="sec-title">PEST ISSUE IDENTIFIED (NOT COVERED)</p></div>
+      <div class="sec-header"><div class="sec-icon">🚫</div><p class="sec-title">PEST ISSUE(S) IDENTIFIED (NOT COVERED)</p></div>
       <div class="chips" id="pest-not-covered-chips"></div>
-      <div class="gform-field">
-        <p class="gform-label">If 'Other' pest, please specify:</p>
-        <input type="text" class="gform-input" id="a-pest-not-covered-other" placeholder="Your answer"/>
-      </div>
+      <div id="pest-not-covered-other-list" style="margin-top:8px"></div>
     </div>
 
     <!-- Pest Trend Analysis (per pest) -->
@@ -398,6 +416,11 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
         <div class="msel" id="msel-product-damaged"></div>
         <div class="prod-details" id="prod-details-damaged"></div>
       </div>
+      <div class="gform-field">
+        <p class="gform-label">If 'Other' product, please specify:</p>
+        <div id="prod-other-damaged-list"></div>
+        <button type="button" class="pmap-btn" style="margin-top:6px" onclick="addProdOtherField('prod-other-damaged-list')">+ Add Other</button>
+      </div>
     </div>
 
     <!-- Product Missing -->
@@ -408,6 +431,11 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
         <div class="msel" id="msel-product-missing"></div>
         <div class="prod-details" id="prod-details-missing"></div>
       </div>
+      <div class="gform-field">
+        <p class="gform-label">If 'Other' product, please specify:</p>
+        <div id="prod-other-missing-list"></div>
+        <button type="button" class="pmap-btn" style="margin-top:6px" onclick="addProdOtherField('prod-other-missing-list')">+ Add Other</button>
+      </div>
     </div>
 
     <!-- Product Required -->
@@ -417,6 +445,11 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
         <label class="lbl">Select all products required</label>
         <div class="msel" id="msel-product-required"></div>
         <div class="prod-details" id="prod-details-required"></div>
+      </div>
+      <div class="gform-field">
+        <p class="gform-label">If 'Other' product, please specify:</p>
+        <div id="prod-other-required-list"></div>
+        <button type="button" class="pmap-btn" style="margin-top:6px" onclick="addProdOtherField('prod-other-required-list')">+ Add Other</button>
       </div>
     </div>
 
@@ -475,11 +508,33 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
     <!-- Signature - AFTER photos -->
     <div class="sec">
       <div class="sec-header"><div class="sec-icon">✍️</div><p class="sec-title">This RPC Technical Audit is prepared by:</p></div>
-      <div id="sig-box" class="sig-box" onclick="openSig()"><p>✍️ Tap / click to sign</p></div>
-      <div id="sig-input-wrap" style="display:none;margin-top:8px">
-        <input type="text" class="sig-inp" id="sig-input" placeholder="Type full name as signature"/>
-        <button class="sig-confirm" onclick="confirmSig()">Confirm Signature ✓</button>
+
+      <!-- Staff ID: circle photo + name + staff no -->
+      <div class="prepared-wrap">
+        <div class="prepared-left">
+          <div class="staff-id-left-inner">
+            <div class="staff-id-circle-container">
+              <div class="staff-id-circle-wrap" id="staff-id-upload" onclick="document.getElementById('staff-id-input').click()">
+                <img id="staff-id-preview" src="" alt=""/>
+                <div class="staff-id-circle-hint">📷<br/><span>Tap to upload<br/>Staff ID photo</span></div>
+              </div>
+              <button type="button" class="staff-id-remove" id="staff-id-remove-btn" onclick="removeStaffIdPhoto()" title="Remove photo">−</button>
+            </div>
+            <input type="file" id="staff-id-input" accept="image/*" style="display:none" onchange="loadStaffIdPhoto(event)"/>
+            <div class="staff-id-fields">
+              <div class="field-wrap" style="margin-bottom:8px">
+                <label class="lbl">Name</label>
+                <input type="text" id="sig-input" placeholder="Full name"/>
+              </div>
+              <div class="field-wrap" style="margin-bottom:0">
+                <label class="lbl">Staff No.</label>
+                <input type="text" id="sig-staffno" placeholder="e.g. 373"/>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
+
       <div class="field-wrap" style="margin-top:11px">
         <label class="lbl">Designation</label>
         <input type="text" id="sig-designation" placeholder="e.g. Site Supervisor"/>
@@ -494,9 +549,19 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
           <input type="email" id="sig-email" placeholder="e.g. name@rapido.com.qa"/>
         </div>
       </div>
+
+      <!-- Link section below email -->
+      <div class="field-wrap" style="margin-top:12px;margin-bottom:0">
+        <p class="qr-heading" style="margin-bottom:8px">For Further Details</p>
+        <div class="prepared-link-wrap">
+          <span class="prepared-link-icon">🌐</span>
+          <a href="https://rapido.com.qa/contact/" target="_blank" class="prepared-link">rapido.com.qa/contact/</a>
+        </div>
+      </div>
     </div>
 
     <button class="submit-btn" onclick="submitAudit()">Submit Audit Report →</button>
+    <p class="app-footer">© 2026 Rapido Pest Control. All rights reserved.</p>
   </div>
 </div>
 
@@ -538,7 +603,7 @@ const PEST_ICONS = {
   "Brown Rat":"🐀","Black Rat":"🐀","Mouse":"🐁",
   "Honeybee / Beehive":"🐝","Agriculture Pest":"🌾",
   "Sub-terranean Termite":"🐛","Non-terranean Termite":"🐛",
-  "Cat":"🐈","Dog":"🐕","Bird":"🐦","Other":"🐾"
+  "Cat":"🐈","Dog":"🐕","Bird":"🐦","Other":"🐛"
 };
 function pestIcon(pest){ return PEST_ICONS[pest] || "🐾"; }
 const PRODUCTS = [
@@ -592,12 +657,64 @@ function areaLabel(item){
 
 function buildPestChips(containerId, onToggle) {
   const pc = document.getElementById(containerId);
+  const listId = containerId === 'pest-chips' ? 'pest-other-list' : 'pest-not-covered-other-list';
   PESTS.forEach(p => {
     const b = document.createElement('button');
-    b.className = 'chip'; b.textContent = p; b.type = 'button';
-    b.onclick = () => { b.classList.toggle('on'); if (onToggle) onToggle(); };
+    b.className = 'chip' + (p === 'Other' ? ' chip-other' : '');
+    b.textContent = p === 'Other' ? '+ Other' : p;
+    b.dataset.value = p;
+    b.type = 'button';
+    if (p === 'Other') {
+      b.onclick = () => addOtherPestField(listId, onToggle);
+    } else {
+      b.onclick = () => { b.classList.toggle('on'); if (onToggle) onToggle(); };
+    }
     pc.appendChild(b);
   });
+}
+
+let otherPestSeq = 0;
+function addOtherPestField(listId, onToggle) {
+  otherPestSeq++;
+  const id = 'other-pest-'+listId+'-'+otherPestSeq;
+  const wrap = document.createElement('div');
+  wrap.className = 'other-pest-row';
+  wrap.id = 'wrap-'+id;
+  wrap.innerHTML =
+    '<input type="text" class="gform-input other-pest-input" id="'+id+'" placeholder="Specify pest name..." oninput="'+(onToggle ? 'updateSelectedPests()' : '')+'"/>'
+    + '<button type="button" class="other-pest-del" onclick="removeOtherPestField(\''+id+'\','+(onToggle ? 'true' : 'false')+')">×</button>';
+  document.getElementById(listId).appendChild(wrap);
+  document.getElementById(id).focus();
+  if (onToggle) onToggle();
+}
+
+function removeOtherPestField(id, triggerUpdate) {
+  document.getElementById('wrap-'+id)?.remove();
+  if (triggerUpdate) updateSelectedPests();
+}
+
+function getOtherPestValues(listId) {
+  return [...document.querySelectorAll('#'+listId+' .other-pest-input')]
+    .map(i => i.value.trim()).filter(Boolean);
+}
+
+let prodOtherSeq = 0;
+function addProdOtherField(listId) {
+  prodOtherSeq++;
+  const id = 'prod-other-'+listId+'-'+prodOtherSeq;
+  const wrap = document.createElement('div');
+  wrap.className = 'other-pest-row';
+  wrap.id = 'wrap-'+id;
+  wrap.innerHTML =
+    '<input type="text" class="gform-input other-prod-input" id="'+id+'" placeholder="Specify product name..."/>'
+    + '<button type="button" class="other-pest-del" onclick="document.getElementById(\'wrap-'+id+'\').remove()">×</button>';
+  document.getElementById(listId).appendChild(wrap);
+  document.getElementById(id).focus();
+}
+
+function getProdOtherValues(listId) {
+  return [...document.querySelectorAll('#'+listId+' .other-prod-input')]
+    .map(i => i.value.trim()).filter(Boolean);
 }
 
 function buildAreaDetailHTML(item, id, isCustom) {
@@ -750,25 +867,20 @@ function updateOverallRisk() {
 let pestTrends = {}; // pestName -> { score, trend, notes, monthly: [{year,value}x12] }
 
 function updateSelectedPests() {
-  let chips = [...document.querySelectorAll('#pest-chips .chip.on')].map(x=>x.textContent);
-  const customVal = document.getElementById('a-pest-other').value.trim();
-  if (customVal) {
-    const idx = chips.indexOf('Other');
-    if (idx !== -1) chips.splice(idx,1);
-    customVal.split(',').map(s=>s.trim()).filter(Boolean).forEach(v=>chips.push(v));
-  }
+  let chips = [...document.querySelectorAll('#pest-chips .chip.on')].map(x=>x.dataset.value||x.textContent);
+  // Remove 'Other' placeholder and replace with actual typed values
+  const otherIdx = chips.indexOf('Other');
+  if (otherIdx !== -1) chips.splice(otherIdx, 1);
+  getOtherPestValues('pest-other-list').forEach(v => chips.push(v));
   selectedPests = chips;
   renderPestTrends();
 }
 
 function getPestNotCovered() {
-  let chips = [...document.querySelectorAll('#pest-not-covered-chips .chip.on')].map(x=>x.textContent);
-  const customVal = document.getElementById('a-pest-not-covered-other').value.trim();
-  if (customVal) {
-    const idx = chips.indexOf('Other');
-    if (idx !== -1) chips.splice(idx,1);
-    customVal.split(',').map(s=>s.trim()).filter(Boolean).forEach(v=>chips.push(v));
-  }
+  let chips = [...document.querySelectorAll('#pest-not-covered-chips .chip.on')].map(x=>x.dataset.value||x.textContent);
+  const otherIdx = chips.indexOf('Other');
+  if (otherIdx !== -1) chips.splice(otherIdx, 1);
+  getOtherPestValues('pest-not-covered-other-list').forEach(v => chips.push(v));
   return chips;
 }
 
@@ -1018,15 +1130,32 @@ function collectPestTrends() {
   return result;
 }
 
-function openSig(){ document.getElementById('sig-box').style.display='none'; document.getElementById('sig-input-wrap').style.display='block'; document.getElementById('sig-input').focus(); }
-function confirmSig(){
-  const v = document.getElementById('sig-input').value.trim();
-  document.getElementById('sig-input-wrap').style.display='none';
-  document.getElementById('sig-box').style.display='block';
-  document.getElementById('sig-box').innerHTML = v ? '<p>✍️ <strong>'+v+'</strong></p>' : '<p>✍️ Tap / click to sign</p>';
+let areaPhotos = {}; // areaId -> [dataURL, ...]
+let staffIdPhoto = null; // dataURL of uploaded staff ID photo
+
+function loadStaffIdPhoto(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    staffIdPhoto = ev.target.result;
+    const circle = document.getElementById('staff-id-upload');
+    const preview = document.getElementById('staff-id-preview');
+    preview.src = staffIdPhoto;
+    circle.classList.add('has-photo');
+    document.getElementById('staff-id-remove-btn').classList.add('visible');
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
 }
 
-let areaPhotos = {}; // areaId -> [dataURL, ...]
+function removeStaffIdPhoto() {
+  staffIdPhoto = null;
+  document.getElementById('staff-id-preview').src = '';
+  document.getElementById('staff-id-upload').classList.remove('has-photo');
+  document.getElementById('staff-id-remove-btn').classList.remove('visible');
+  document.getElementById('staff-id-input').value = '';
+}
 
 function renumberPhotos(rowId) {
   document.querySelectorAll('#'+rowId+' .photo-wrap .photo-num').forEach((el,i)=>{ el.textContent = 'Picture ' + (i+1); });
@@ -1674,7 +1803,7 @@ function submitAudit() {
 
   pestTrends = collectPestTrends();
 
-  summary.innerHTML = '<p class="sum-sec">Report Identity</p>';
+  summary.innerHTML = '<p class="sum-sec">Report Details</p>';
   summary.innerHTML += row('Report No.', repno) + row('Date', date);
   const contractNo = document.getElementById('a-contractno').value.trim();
   if (contractNo) summary.innerHTML += row('Contract No.', contractNo);
@@ -1761,13 +1890,17 @@ function submitAudit() {
   const prodDamaged = getProductDetails('prod-details-damaged');
   const prodMissing = getProductDetails('prod-details-missing');
   const prodRequired = getProductDetails('prod-details-required');
-  summary.innerHTML += row('Product Damaged', formatProductList(prodDamaged))
-    + row('Product Missing', formatProductList(prodMissing))
-    + row('Product Required', formatProductList(prodRequired));
+  const prodOtherDamaged = getProdOtherValues('prod-other-damaged-list').join(', ');
+  const prodOtherMissing = getProdOtherValues('prod-other-missing-list').join(', ');
+  const prodOtherRequired = getProdOtherValues('prod-other-required-list').join(', ');
+  summary.innerHTML += row('Product Damaged', formatProductList(prodDamaged)+(prodOtherDamaged?' | Other: '+prodOtherDamaged:''))
+    + row('Product Missing', formatProductList(prodMissing)+(prodOtherMissing?' | Other: '+prodOtherMissing:''))
+    + row('Product Required', formatProductList(prodRequired)+(prodOtherRequired?' | Other: '+prodOtherRequired:''));
 
-  summary.innerHTML += '<p class="sum-sec">Signature</p>';
-  summary.innerHTML += row('Signature', sig||'Not signed');
-  summary.innerHTML += row('Designation', document.getElementById('sig-designation').value.trim()||'Not provided')
+  summary.innerHTML += '<p class="sum-sec">Prepared By</p>';
+  summary.innerHTML += row('Name', sig||'Not provided')
+    + row('Staff No.', document.getElementById('sig-staffno').value.trim()||'Not provided')
+    + row('Designation', document.getElementById('sig-designation').value.trim()||'Not provided')
     + row('Phone', document.getElementById('sig-phone').value.trim()||'Not provided')
     + row('Email', document.getElementById('sig-email').value.trim()||'Not provided');
   if (mapPins.length) {
@@ -1819,12 +1952,14 @@ async function downloadPDF() {
 
     y = HDR_H + 10;
 
+    let sectionNum = 0;
     function secTitle(t) {
+      sectionNum++;
       if (y>265){doc.addPage();y=20;}
       doc.setFillColor(219,234,254); doc.rect(M-2,y-5,W-2*M+4,10,'F');
       doc.setFillColor(37,99,235); doc.rect(M-2,y-5,3,10,'F');
       doc.setTextColor(30,64,175); doc.setFontSize(9.5); doc.setFont('helvetica','bold');
-      doc.text(t,M+4,y+2); y+=13;
+      doc.text(sectionNum+'. '+t, M+4, y+2); y+=13;
       doc.setDrawColor(147,197,253); doc.setLineWidth(0.2); doc.line(M,y,W-M,y); y+=4;
     }
 
@@ -1837,7 +1972,7 @@ async function downloadPDF() {
       doc.text(lines,62,y); y+=Math.max(6,lines.length*5);
     }
 
-    secTitle('REPORT IDENTITY');
+    secTitle('REPORT DETAILS');
     field('Report No.', repno);
     field('Date', dateVal);
     const contractNo = document.getElementById('a-contractno').value.trim();
@@ -1853,7 +1988,7 @@ async function downloadPDF() {
     field('RPC Representative', document.getElementById('a-rpc-rep').value);
     y+=2;
 
-    secTitle('PEST ISSUE IDENTIFIED');
+    secTitle('PEST ISSUE(S) IDENTIFIED');
     doc.setFontSize(8.5); doc.setFont('helvetica','normal'); doc.setTextColor(15,23,42);
     const pestText = selectedPests.length ? selectedPests.join(' • ') : 'None identified';
     const pestLines = doc.splitTextToSize(pestText, W-2*M);
@@ -2022,10 +2157,13 @@ async function downloadPDF() {
       const prodDamaged = getProductDetails('prod-details-damaged');
       const prodMissing = getProductDetails('prod-details-missing');
       const prodRequired = getProductDetails('prod-details-required');
+      const prodOtherDamaged = getProdOtherValues('prod-other-damaged-list').join(', ');
+      const prodOtherMissing = getProdOtherValues('prod-other-missing-list').join(', ');
+      const prodOtherRequired = getProdOtherValues('prod-other-required-list').join(', ');
       secTitle('PRODUCT STATUS');
-      field('Product Damaged', formatProductList(prodDamaged));
-      field('Product Missing', formatProductList(prodMissing));
-      field('Product Required', formatProductList(prodRequired));
+      field('Product Damaged', formatProductList(prodDamaged)+(prodOtherDamaged?' | Other: '+prodOtherDamaged:''));
+      field('Product Missing', formatProductList(prodMissing)+(prodOtherMissing?' | Other: '+prodOtherMissing:''));
+      field('Product Required', formatProductList(prodRequired)+(prodOtherRequired?' | Other: '+prodOtherRequired:''));
       y+=3;
     }
 
@@ -2053,30 +2191,93 @@ async function downloadPDF() {
       y+=2;
     }
 
-    // SIGNATURE after photos
-    const sig=document.getElementById('sig-input').value.trim();
-    if(sig){
-      if(y>245){doc.addPage();y=20;}
+    // THIS RPC TECHNICAL AUDIT IS PREPARED BY
+    {
+      if(y>230){doc.addPage();y=20;}
       secTitle('THIS RPC TECHNICAL AUDIT IS PREPARED BY:');
-      doc.setFontSize(15); doc.setFont('helvetica','bolditalic'); doc.setTextColor(10,22,40);
-      doc.text(sig,M,y+4);
-      doc.setDrawColor(37,99,235); doc.setLineWidth(0.5); doc.line(M,y+10,M+80,y+10);
-      doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(100,116,139);
-      doc.text('Authorized Signature',M,y+17); y+=22;
 
+      const name = document.getElementById('sig-input').value.trim();
+      const staffNo = document.getElementById('sig-staffno').value.trim();
       const designation = document.getElementById('sig-designation').value.trim();
       const phone = document.getElementById('sig-phone').value.trim();
       const email = document.getElementById('sig-email').value.trim();
-      if (designation || phone || email) {
-        doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(71,85,105);
-        if (designation) { doc.text(designation,M,y); y+=4.5; }
-        if (phone)       { doc.text('Phone: '+phone,M,y); y+=4.5; }
-        if (email)       { doc.text('Email: '+email,M,y); y+=4.5; }
-        y+=2;
+
+      const blockH = 60;
+      const leftW = (W-2*M)*0.58, rightW = (W-2*M)*0.42;
+      const divX = M + leftW;
+
+      // outer border
+      doc.setDrawColor(226,232,240); doc.setLineWidth(0.4);
+      doc.rect(M, y, W-2*M, blockH);
+
+      // vertical divider
+      doc.line(divX, y, divX, y+blockH);
+
+      // LEFT SIDE — circular photo + name + designation/staff no./phone/email
+      const photoSize = 30;
+      const photoX = M+4, photoY = y+5;
+      if (staffIdPhoto) {
+        try {
+          // clip photo to circle via offscreen canvas
+          const sz = 120;
+          const cv = document.createElement('canvas'); cv.width=sz; cv.height=sz;
+          const cx2 = cv.getContext('2d');
+          cx2.beginPath(); cx2.arc(sz/2,sz/2,sz/2,0,Math.PI*2); cx2.clip();
+          const img2 = new Image(); img2.src = staffIdPhoto;
+          cx2.drawImage(img2,0,0,sz,sz);
+          doc.addImage(cv.toDataURL('image/png'),'PNG', photoX, photoY, photoSize, photoSize);
+          // circle border
+          doc.setDrawColor(37,99,235); doc.setLineWidth(0.6);
+          doc.circle(photoX+photoSize/2, photoY+photoSize/2, photoSize/2);
+        } catch(e){}
       }
+      const textX = staffIdPhoto ? M+4+photoSize+5 : M+6;
+      let ty = y+10;
+      const lineGap = 5.2;
+
+      // Name (bold, larger)
+      if (name) {
+        doc.setFontSize(9.5); doc.setFont('helvetica','bold'); doc.setTextColor(15,23,42);
+        doc.text(name.toUpperCase(), textX, ty); ty += lineGap+1;
+      }
+      // Designation (italic, blue)
+      if (designation) {
+        doc.setFontSize(8); doc.setFont('helvetica','italic'); doc.setTextColor(37,99,235);
+        doc.text(designation, textX, ty); ty += lineGap;
+      }
+      // Staff No
+      if (staffNo) {
+        doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(71,85,105);
+        doc.text('Staff No: '+staffNo, textX, ty); ty += lineGap;
+      }
+      // Phone
+      if (phone) {
+        doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(15,23,42);
+        doc.text('Tel: '+phone, textX, ty); ty += lineGap;
+      }
+      // Email
+      if (email) {
+        doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(15,23,42);
+        doc.text('Email: '+email, textX, ty);
+      }
+
+      // RIGHT SIDE — link
+      doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(37,99,235);
+      doc.text('FOR FURTHER DETAILS', divX+rightW/2, y+14, {align:'center'});
+      doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor(100,116,139);
+      doc.text('Visit us at:', divX+rightW/2, y+22, {align:'center'});
+      // light blue filled box
+      const linkBoxW = 62, linkBoxH = 13;
+      const linkBoxX = divX + (rightW-linkBoxW)/2;
+      doc.setFillColor(219,234,254); doc.setDrawColor(147,197,253); doc.setLineWidth(0.5);
+      doc.roundedRect(linkBoxX, y+26, linkBoxW, linkBoxH, 2, 2, 'FD');
+      doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(37,99,235);
+      doc.textWithLink('rapido.com.qa/contact/', divX+rightW/2, y+34, {align:'center', url:'https://rapido.com.qa/contact/'});
+
+      y += blockH + 6;
     }
 
-    // FOOTER — same color as header, only page number + report number
+    // FOOTER — page number + report number + copyright
     const pages=doc.getNumberOfPages();
     for(let p=1;p<=pages;p++){
       doc.setPage(p);
@@ -2084,6 +2285,7 @@ async function downloadPDF() {
       doc.setDrawColor(147,197,253); doc.setLineWidth(0.4); doc.line(0,285,W,285);
       doc.setFontSize(8); doc.setTextColor(71,85,105); doc.setFont('helvetica','normal');
       doc.text('Report No: '+repno, M, 292);
+      doc.text('\u00A9 2026 Rapido Pest Control', W/2, 292, {align:'center'});
       doc.text('Page '+p+' of '+pages, W-M, 292, {align:'right'});
     }
 
@@ -2094,8 +2296,13 @@ async function downloadPDF() {
 }
 
 function resetAudit(){
-  ['a-reportno','a-date','a-contractno','a-client','a-property','a-location','a-client-rep','a-rpc-rep','sig-input','sig-designation','sig-phone','sig-email','a-pest-other','a-pest-not-covered-other','a-area-other','a-additional-findings']
+  ['a-reportno','a-date','a-contractno','a-client','a-property','a-location','a-client-rep','a-rpc-rep','sig-input','sig-staffno','sig-designation','sig-phone','sig-email','a-area-other','a-additional-findings']
     .forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  ['prod-other-damaged-list','prod-other-missing-list','prod-other-required-list'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.innerHTML='';
+  });
+  document.getElementById('pest-other-list').innerHTML = '';
+  document.getElementById('pest-not-covered-other-list').innerHTML = '';
   document.querySelectorAll('#pest-chips .chip, #pest-not-covered-chips .chip').forEach(b=>b.classList.remove('on'));
   document.querySelectorAll('.risk-btn').forEach(b=>b.classList.remove('on'));
   document.querySelectorAll('.area-risk-btn').forEach(b=>b.classList.remove('on'));
@@ -2128,9 +2335,11 @@ function resetAudit(){
   pestTrends = {};
   selectedPests=[]; selectedRisk='';
   renderPestTrends();
-  document.getElementById('sig-box').style.display='block';
-  document.getElementById('sig-box').innerHTML='<p>✍️ Tap / click to sign</p>';
-  document.getElementById('sig-input-wrap').style.display='none';
+  staffIdPhoto = null;
+  document.getElementById('staff-id-preview').src = '';
+  document.getElementById('staff-id-upload').classList.remove('has-photo');
+  document.getElementById('staff-id-remove-btn').classList.remove('visible');
+  document.getElementById('staff-id-input').value = '';
   mapBackground = null;
   mapPins = [];
   mapLines = [];
