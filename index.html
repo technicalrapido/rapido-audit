@@ -222,6 +222,11 @@ input[type=file]{display:none;}
 .reset-btn:active{background:var(--gray100);}
 .app-footer{text-align:center;font-size:11px;color:var(--gray400);margin-top:18px;margin-bottom:4px;letter-spacing:.2px;}
 .onsite-options{display:flex;gap:10px;margin-top:4px;flex-wrap:wrap;}
+.urgency-options{display:flex;gap:8px;flex-wrap:wrap;}
+.urgency-btn{padding:6px 12px;border-radius:8px;border:1.5px solid var(--gray200);background:#fff;color:var(--gray600);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;}
+.urgency-btn.imm{background:#fee2e2;border-color:var(--red);color:var(--red);}
+.urgency-btn.short{background:#fef3c7;border-color:#d97706;color:#d97706;}
+.urgency-btn.long{background:#dcfce7;border-color:#16a34a;color:#16a34a;}
 .onsite-btn{padding:8px 20px;border-radius:8px;border:1.5px solid var(--gray200);background:#fff;color:var(--gray600);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;}
 .onsite-btn.on.yes{background:#dcfce7;border-color:#16a34a;color:#16a34a;}
 .onsite-btn.on.no{background:#fee2e2;border-color:var(--red);color:var(--red);}
@@ -697,6 +702,17 @@ const RISK_CLASS = {Low:'low',Medium:'med',High:'high'};
 
 let selectedPests = [], selectedRisk = "";
 let areaRisks = {}; // item -> 'Low'|'Medium'|'High'
+let areaUrgency = {}; // id -> urgency string
+
+function setUrgency(id, val) {
+  const current = areaUrgency[id] || '';
+  const newVal = current === val ? '' : val; // toggle off if same
+  areaUrgency[id] = newVal;
+  const cls = newVal === 'Immediate (24hrs)' ? 'imm' : newVal === 'Short-term (7 days)' ? 'short' : newVal === 'Long-term (Next visit)' ? 'long' : '';
+  document.getElementById('urgency-imm-'+id).className   = 'urgency-btn'+(newVal==='Immediate (24hrs)'  ? ' imm':'');
+  document.getElementById('urgency-short-'+id).className = 'urgency-btn'+(newVal==='Short-term (7 days)'? ' short':'');
+  document.getElementById('urgency-long-'+id).className  = 'urgency-btn'+(newVal==='Long-term (Next visit)'? ' long':'');
+}
 let mapBackground = null; // data URL of uploaded floor plan, or null
 let mapPins = []; // [{x, y, product, area, notes}] - x/y as percentages 0-100
 let mapLines = []; // [{x1,y1,x2,y2}] - percentages 0-100
@@ -851,6 +867,11 @@ function buildAreaDetailHTML(item, id, isCustom) {
     + '</div>'
     + '<div class="field-wrap">'
       + '<label class="lbl">Recommendation for Client Action</label>'
+      + '<div class="urgency-options" style="margin-bottom:8px">'
+        + '<button type="button" class="urgency-btn" id="urgency-imm-'+id+'" onclick="setUrgency(\''+id+'\',\'Immediate (24hrs)\')">⚡ Immediate (24hrs)</button>'
+        + '<button type="button" class="urgency-btn" id="urgency-short-'+id+'" onclick="setUrgency(\''+id+'\',\'Short-term (7 days)\')">📅 Short-term (7 days)</button>'
+        + '<button type="button" class="urgency-btn" id="urgency-long-'+id+'" onclick="setUrgency(\''+id+'\',\'Long-term (Next visit)\')">🔄 Long-term (Next visit)</button>'
+      + '</div>'
       + '<textarea id="reco-'+id+'" placeholder="Actions to be taken for this area, such as treatments, structural fixes, or hygiene improvements..."></textarea>'
     + '</div>'
     + '<div class="field-wrap" style="margin-bottom:0">'
@@ -2128,7 +2149,8 @@ function submitAudit() {
         badge = '<span class="risk-badge" style="background:rgb('+r+','+g+','+b+')">'+risk+'</span>';
       }
       summary.innerHTML += '<p class="sum-sec" style="margin-top:10px">'+areaLabel(item)+' <span style="float:right">'+badge+'</span></p>';
-      summary.innerHTML += row('Findings', findings) + row('Action Taken by RPC', actionTaken) + row('Further Action Required by RPC', action) + row('Recommendation for Client Action', reco);
+      const urgency = areaUrgency[id] || '';
+      summary.innerHTML += row('Findings', findings) + row('Action Taken by RPC', actionTaken) + row('Further Action Required by RPC', action) + row('Recommendation for Client Action', (urgency?'['+urgency+'] ':'')+reco);
       const photos = areaPhotos[id] || [];
       summary.innerHTML += row('Photos', photos.length ? (photos.length+' photo'+(photos.length>1?'s':'')+' attached') : 'No photos attached');
     });
@@ -2145,7 +2167,8 @@ function submitAudit() {
         badge = '<span class="risk-badge" style="background:rgb('+r+','+g+','+b+')">'+risk+'</span>';
       }
       summary.innerHTML += '<p class="sum-sec" style="margin-top:10px">'+name+' <span style="float:right">'+badge+'</span></p>';
-      summary.innerHTML += row('Findings', findings) + row('Further Action Required by RPC', action) + row('Recommendation for Client Action', reco);
+      const urgency = areaUrgency[id] || '';
+      summary.innerHTML += row('Findings', findings) + row('Further Action Required by RPC', action) + row('Recommendation for Client Action', (urgency?'['+urgency+'] ':'')+reco);
       const photos = areaPhotos[id] || [];
       summary.innerHTML += row('Photos', photos.length ? (photos.length+' photo'+(photos.length>1?'s':'')+' attached') : 'No photos attached');
     });
@@ -2342,13 +2365,26 @@ async function downloadPDF() {
           const ls=doc.splitTextToSize(action,W-2*M-8);
           doc.text(ls,M+8,y+4.5); y+=4.5+ls.length*4.5;
         }
-        if (reco) {
+        if (reco || areaUrgency[id]) {
           if (y>272){doc.addPage();y=20;}
           doc.setFont('helvetica','bold'); doc.setTextColor(100,116,139);
-          doc.text('Recommendation for Client Action:',M+8,y);
-          doc.setFont('helvetica','normal'); doc.setTextColor(15,23,42);
-          const ls=doc.splitTextToSize(reco,W-2*M-8);
-          doc.text(ls,M+8,y+4.5); y+=4.5+ls.length*4.5;
+          doc.text('Recommendation for Client Action:',M+8,y); y+=4.5;
+          // urgency badge
+          const urg = areaUrgency[id];
+          if (urg) {
+            const urgColor = urg==='Immediate (24hrs)' ? [220,38,38] : urg==='Short-term (7 days)' ? [217,119,6] : [22,163,74];
+            doc.setFillColor(...urgColor); doc.setTextColor(255,255,255);
+            doc.setFontSize(7.5); doc.setFont('helvetica','bold');
+            const urgW = doc.getTextWidth(' '+urg+' ')+2;
+            doc.roundedRect(M+8, y-3, urgW, 6, 1, 1, 'F');
+            doc.text(' '+urg, M+8, y+1); y+=8;
+            doc.setTextColor(15,23,42);
+          }
+          if (reco) {
+            doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(15,23,42);
+            const ls=doc.splitTextToSize(reco,W-2*M-8);
+            doc.text(ls,M+8,y); y+=ls.length*4.5;
+          }
         }
         const photos = areaPhotos[id] || [];
         if (photos.length) {
@@ -2672,6 +2708,7 @@ function resetAudit(){
   document.querySelectorAll('.check-item').forEach(r=>r.classList.remove('checked'));
   document.querySelectorAll('.area-block').forEach(b=>b.classList.remove('checked'));
   areaRisks = {};
+  areaUrgency = {};
   pestTrends = {};
   selectedPests=[]; selectedRisk='';
   renderPestTrends();
