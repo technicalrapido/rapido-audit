@@ -541,8 +541,8 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
         <input type="hidden" id="onsite-folder-val" value=""/>
       </div>
       <div class="field-wrap" style="margin-bottom:0">
-        <label class="lbl">Observations</label>
-        <textarea id="onsite-observations" placeholder="Any observations regarding the onsite folder..." style="min-height:70px"></textarea>
+        <label class="lbl">Observation(s)</label>
+        <textarea id="onsite-observations" placeholder="Any observation(s) regarding the onsite folder..." style="min-height:70px"></textarea>
       </div>
     </div>
 
@@ -1381,7 +1381,7 @@ function generateAuditSummary() {
 
   // Inspection scope
   if (totalAreas > 0) {
-    lines.push('A total of '+totalAreas+' area'+(totalAreas>1?'s were':'was')+' inspected during this visit.');
+    lines.push('A total of '+totalAreas+(totalAreas>1?' areas were':' area was')+' inspected during this visit.');
   }
 
   // Pest findings
@@ -1408,7 +1408,7 @@ function generateAuditSummary() {
   if (prodMissing.length) prodParts.push(prodMissing.length+' missing');
   if (prodRequired.length) prodParts.push(prodRequired.length+' required for installation');
   if (prodParts.length) {
-    lines.push('Regarding product status: '+prodParts.join(', ')+' item'+(prodParts.length>1?'s were':' was')+' recorded.');
+    lines.push('Regarding product status: '+prodParts.join(', ')+(prodParts.length>1?' items were':' item was')+' recorded.');
   }
 
   // Onsite folder
@@ -2202,7 +2202,7 @@ function submitAudit() {
 
   summary.innerHTML += '<p class="sum-sec">Onsite Folder</p>';
   summary.innerHTML += row('Onsite folder updated?', document.getElementById('onsite-folder-val').value||'Not selected')
-    + row('Observations', document.getElementById('onsite-observations').value.trim()||'None');
+    + row('Observation(s)', document.getElementById('onsite-observations').value.trim()||'None');
   summary.innerHTML += '<p class="sum-sec">Health &amp; Safety</p>';
   const hsVal = document.getElementById('hs-val').value||'Not selected';
   const hsIncident = document.getElementById('hs-incident').value.trim();
@@ -2524,7 +2524,7 @@ async function downloadPDF() {
       const onsiteVal = document.getElementById('onsite-folder-val').value || 'Not selected';
       const onsiteObs = document.getElementById('onsite-observations').value.trim();
       field('Onsite folder updated?', onsiteVal);
-      if (onsiteObs) field('Observations', onsiteObs);
+      if (onsiteObs) field('Observation(s)', onsiteObs);
       y+=3;
     }
 
