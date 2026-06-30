@@ -485,7 +485,7 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
     <div class="sec">
       <div class="sec-header"><div class="sec-icon">🗺️</div><p class="sec-title">Product Map</p></div>
       <div id="pmap-instances-container"></div>
-      <button type="button" class="pmap-btn" onclick="addMapInstance()" style="margin-top:12px;width:100%;padding:10px;font-weight:700;border-style:dashed">+ Add Another Map</button>
+      <button type="button" class="pmap-btn" onclick="addMapInstance(true)" style="margin-top:12px;width:100%;padding:10px;font-weight:700;border-style:dashed">+ Add Another Map</button>
     </div>
 
 
@@ -734,13 +734,15 @@ function createMapState() {
 
 function activeMap() { return mapInstances[activeMapId]; }
 
-function addMapInstance() {
+function addMapInstance(scrollToNew) {
   const mid = mapInstances.length;
   mapInstances.push(createMapState());
   renderMapInstanceHTML(mid);
   initMapInstance(mid);
-  // scroll to new map
-  document.getElementById('pmap-wrap-'+mid)?.scrollIntoView({behavior:'smooth', block:'start'});
+  // Only scroll to the new map when explicitly added by the supervisor (not on initial page load)
+  if (scrollToNew) {
+    document.getElementById('pmap-wrap-'+mid)?.scrollIntoView({behavior:'smooth', block:'start'});
+  }
 }
 
 function removeMapInstance(mid) {
