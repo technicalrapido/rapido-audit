@@ -228,6 +228,30 @@ input[type=file]{display:none;}
 .app-footer{text-align:center;font-size:11px;color:var(--gray400);margin-top:18px;margin-bottom:4px;letter-spacing:.2px;}
 .onsite-options{display:flex;gap:10px;margin-top:4px;flex-wrap:wrap;}
 .urgency-options{display:flex;gap:8px;flex-wrap:wrap;}
+.chem-block{border:1.5px solid var(--gray200);border-radius:12px;padding:14px;margin-bottom:12px;background:#fff;}
+.chem-block-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.chem-block-title{font-size:13px;font-weight:700;color:var(--blue2);}
+.chem-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.chem-qty-row{display:flex;gap:8px;align-items:flex-end;}
+.chem-qty-row input{flex:1;}
+.chem-qty-row select{width:90px;flex-shrink:0;}
+.chem-trend-btn{padding:6px 12px;border-radius:8px;border:1.5px solid var(--gray200);background:#fff;color:var(--gray600);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;}
+.chem-trend-btn.inc{background:#fee2e2;border-color:var(--red);color:var(--red);}
+.chem-trend-btn.same{background:#fef3c7;border-color:#d97706;color:#d97706;}
+.chem-trend-btn.dec{background:#dcfce7;border-color:#16a34a;color:#16a34a;}
+.chem-monthly-grid{margin-top:10px;}
+.chem-mg-row{display:grid;grid-template-columns:70px 70px 1fr;gap:6px;align-items:center;margin-bottom:5px;}
+.chem-mg-row select,.chem-mg-row input{font-size:12px;}
+.chem-chart-wrap{margin-top:8px;background:var(--gray50);border-radius:8px;padding:8px;border:1px solid var(--gray200);}
+.chem-chart-wrap canvas{width:100%;height:80px;display:block;}
+.resist-block{border:1.5px solid var(--gray200);border-radius:12px;padding:14px;margin-bottom:12px;background:#fff;}
+.resist-block-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.resist-block-title{font-size:13px;font-weight:700;color:var(--blue2);}
+.resist-yn-row{display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;}
+.resist-yn-btn{padding:6px 14px;border-radius:8px;border:1.5px solid var(--gray200);background:#fff;color:var(--gray600);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;}
+.resist-yn-btn.yes{background:#fee2e2;border-color:var(--red);color:var(--red);}
+.resist-yn-btn.no{background:#dcfce7;border-color:#16a34a;color:#16a34a;}
+.resist-chem-change{border:1px solid var(--gray200);border-radius:8px;padding:10px;margin-top:8px;background:var(--blue-lt);}
 .urgency-btn{padding:6px 12px;border-radius:8px;border:1.5px solid var(--gray200);background:#fff;color:var(--gray600);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;}
 .urgency-btn.imm{background:#fee2e2;border-color:var(--red);color:var(--red);}
 .urgency-btn.short{background:#fef3c7;border-color:#d97706;color:#d97706;}
@@ -423,6 +447,20 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
     <div class="sec">
       <div class="sec-header"><div class="sec-icon">📝</div><p class="sec-title">Additional Findings</p></div>
       <textarea id="a-additional-findings" placeholder="Any other findings not covered under the specific areas above..."></textarea>
+    </div>
+
+    <!-- Chemical Usage (Optional) -->
+    <div class="sec" id="chemical-usage-sec">
+      <div class="sec-header"><div class="sec-icon">🧪</div><p class="sec-title">Chemical Usage (Optional)</p></div>
+      <div id="chemical-list"></div>
+      <button type="button" class="pmap-btn" id="add-chemical-btn" onclick="addChemical()" style="margin-top:8px;width:100%;border-style:dashed;font-weight:700;padding:10px">+ Chemical Usage</button>
+    </div>
+
+    <!-- Pest Resistance (Optional) -->
+    <div class="sec" id="pest-resistance-sec">
+      <div class="sec-header"><div class="sec-icon">🛡️</div><p class="sec-title">Pest Resistance (Optional)</p></div>
+      <div id="resistance-list"></div>
+      <button type="button" class="pmap-btn" onclick="addResistance()" style="margin-top:8px;width:100%;border-style:dashed;font-weight:700;padding:10px">+ Add Pest Resistance Record</button>
     </div>
 
     <!-- Overall Risk Level -->
@@ -1090,7 +1128,340 @@ function updateOverallRisk() {
   }
 }
 
-let pestTrends = {}; // pestName -> { score, trend, notes, monthly: [{year,value}x12] }
+let resistances = [];
+let resistSeq = 0;
+
+function addResistance() {
+  const id = 'resist-'+(++resistSeq);
+  resistances.push({id, chemical:'', ingredient:'', pest:'', noted:'', month:'', monthYear:'', chemChanged:'', newChemNote:'', prevName:'', prevIngredient:'', newName:'', newIngredient:'', notes:''});
+  renderResistances();
+  document.getElementById(id)?.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function removeResistance(id) {
+  resistances = resistances.filter(r=>r.id!==id);
+  renderResistances();
+}
+
+function setResistNoted(id, val, btn) {
+  const r = resistances.find(x=>x.id===id);
+  if (!r) return;
+  const el = document.getElementById(id);
+  el.querySelectorAll('.resist-noted-btn').forEach(b=>b.className='resist-yn-btn resist-noted-btn');
+  if (r.noted === val) { r.noted=''; return; }
+  r.noted = val;
+  btn.classList.add(val==='Yes'?'yes':'no');
+}
+
+function setResistChemChanged(id, val, btn) {
+  const r = resistances.find(x=>x.id===id);
+  if (!r) return;
+  const el = document.getElementById(id);
+  el.querySelectorAll('.resist-changed-btn').forEach(b=>b.className='resist-yn-btn resist-changed-btn');
+  if (r.chemChanged === val) {
+    r.chemChanged='';
+    document.getElementById('resist-chem-change-'+id).style.display='none';
+    return;
+  }
+  r.chemChanged = val;
+  btn.classList.add(val==='Yes'?'yes':'no');
+  document.getElementById('resist-chem-change-'+id).style.display = val==='Yes'?'block':'none';
+}
+
+function collectResistData() {
+  resistances.forEach(r => {
+    const el = document.getElementById(r.id);
+    if (!el) return;
+    r.chemical       = el.querySelector('.resist-chemical').value.trim();
+    r.ingredient     = el.querySelector('.resist-ingredient').value.trim();
+    r.pest           = el.querySelector('.resist-pest').value.trim();
+    r.month          = el.querySelector('.resist-month').value;
+    r.monthYear      = el.querySelector('.resist-month-year').value.trim();
+    r.newChemNote    = el.querySelector('.resist-new-chem-note')?.value.trim()||'';
+    r.prevName       = el.querySelector('.resist-prev-name')?.value.trim()||'';
+    r.prevIngredient = el.querySelector('.resist-prev-ingredient')?.value.trim()||'';
+    r.newName        = el.querySelector('.resist-new-chem-note')?.value.trim()||''; // same field
+    r.newIngredient  = el.querySelector('.resist-new-ingredient')?.value.trim()||'';
+    r.notes          = el.querySelector('.resist-notes').value.trim();
+  });
+}
+
+function resetResistances() {
+  resistances = []; resistSeq = 0;
+  const list = document.getElementById('resistance-list');
+  if (list) list.innerHTML = '';
+}
+
+function renderResistances() {
+  const list = document.getElementById('resistance-list');
+  if (!list) return;
+  list.innerHTML = '';
+  resistances.forEach((r, ri) => {
+    const div = document.createElement('div');
+    div.className = 'resist-block';
+    div.id = r.id;
+    const monthOpts = MONTHS_SHORT.map(m=>'<option value="'+m+'"'+(m===r.month?' selected':'')+'>'+m+'</option>').join('');
+    div.innerHTML =
+      '<div class="resist-block-head">'
+        +'<span class="resist-block-title">Record '+(ri+1)+'</span>'
+        +'<button type="button" class="pmap-btn" onclick="removeResistance(\''+r.id+'\')" style="color:var(--red);border-color:var(--red);padding:4px 10px;font-size:12px">✕ Remove</button>'
+      +'</div>'
+      +'<div class="field-wrap"><label class="lbl">Chemical Name</label>'
+        +'<input type="text" class="resist-chemical" placeholder="e.g. Ficam WP, Cislin 2.5..." value="'+r.chemical+'"/></div>'
+      +'<div class="field-wrap"><label class="lbl">Active Ingredient</label>'
+        +'<input type="text" class="resist-ingredient" placeholder="e.g. Bendiocarb 80%, Deltamethrin 2.5%..." value="'+(r.ingredient||'')+'"/></div>'
+      +'<div class="field-wrap"><label class="lbl">Pest Name</label>'
+        +'<input type="text" class="resist-pest" placeholder="e.g. German Cockroach, Rodent..." value="'+r.pest+'"/></div>'
+      +'<div class="field-wrap"><label class="lbl">Any Resistance Noted?</label>'
+        +'<div class="resist-yn-row">'
+          +'<button type="button" class="resist-yn-btn resist-noted-btn'+(r.noted==='Yes'?' yes':'')+'" onclick="setResistNoted(\''+r.id+'\',\'Yes\',this)">Yes</button>'
+          +'<button type="button" class="resist-yn-btn resist-noted-btn'+(r.noted==='No'?' no':'')+'" onclick="setResistNoted(\''+r.id+'\',\'No\',this)">No</button>'
+        +'</div></div>'
+      +'<div class="field-wrap"><label class="lbl">Which Month</label>'
+        +'<div style="display:flex;gap:8px;align-items:center">'
+          +'<select class="resist-month" style="width:110px"><option value="">-- Month --</option>'+monthOpts+'</select>'
+          +'<input type="number" class="resist-month-year" placeholder="Year" value="'+(r.monthYear||new Date().getFullYear())+'" min="2000" max="2100" style="width:82px"/>'
+        +'</div></div>'
+      +'<div class="field-wrap"><label class="lbl">Did Chemical Change?</label>'
+        +'<div class="resist-yn-row">'
+          +'<button type="button" class="resist-yn-btn resist-changed-btn'+(r.chemChanged==='Yes'?' yes':'')+'" onclick="setResistChemChanged(\''+r.id+'\',\'Yes\',this)">Yes</button>'
+          +'<button type="button" class="resist-yn-btn resist-changed-btn'+(r.chemChanged==='No'?' no':'')+'" onclick="setResistChemChanged(\''+r.id+'\',\'No\',this)">No</button>'
+        +'</div></div>'
+      +'<div class="resist-chem-change" id="resist-chem-change-'+r.id+'" style="display:'+(r.chemChanged==='Yes'?'block':'none')+'">'
+        +'<p class="lbl" style="margin-bottom:10px;color:var(--blue2);font-size:12px;font-weight:700">Chemical Change Details</p>'
+        +'<p class="lbl" style="font-size:11px;color:var(--gray500);margin-bottom:8px">New Chemical</p>'
+        +'<div class="field-wrap"><label class="lbl">Chemical Name</label>'
+          +'<input type="text" class="resist-new-chem-note" placeholder="New chemical introduced..." value="'+(r.newChemNote||'')+'"/></div>'
+        +'<div class="field-wrap"><label class="lbl">Active Ingredient</label>'
+          +'<input type="text" class="resist-new-ingredient" placeholder="e.g. Deltamethrin 2.5%..." value="'+r.newIngredient+'"/></div>'
+      +'</div>'
+      +'<div class="field-wrap" style="margin-top:10px"><label class="lbl">Further Notes</label>'
+        +'<textarea class="resist-notes" placeholder="Additional observations on resistance, rotation plan, recommended action..." style="min-height:70px">'+r.notes+'</textarea></div>';
+    list.appendChild(div);
+  });
+}
+
+let chemicals = []; // [{name,ingredient,qty,um,aarl,trend,notes,monthly:[{month,year,value}x12]}]
+let chemSeq = 0;
+const CHEM_UMS = ['ml','Ltr','Grm','Pcs','Dot','Other'];
+
+function defaultChemMonthly() {
+  const yr = String(new Date().getFullYear());
+  return MONTHS_SHORT.map(m => ({month:m, year:yr, value:''}));
+}
+
+function addChemical() {
+  const id = 'chem-'+(++chemSeq);
+  chemicals.push({id, name:'',ingredient:'',qty:'',um:'Ltr',aarl:'',umAarl:'Ltr',trend:'',notes:'',monthly:defaultChemMonthly()});
+  renderChemicals();
+  document.getElementById(id)?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function removeChemical(id) {
+  chemicals = chemicals.filter(c=>c.id!==id);
+  renderChemicals();
+}
+
+function toggleChemUmOther(sel, inputId) {
+  const inp = document.getElementById(inputId);
+  if (!inp) return;
+  inp.style.display = sel.value === 'Other' ? 'block' : 'none';
+  if (sel.value === 'Other') inp.focus();
+}
+
+function collectChemData() {
+  chemicals.forEach(c => {
+    const el = document.getElementById(c.id);
+    if (!el) return;
+    c.name       = el.querySelector('.chem-name').value.trim();
+    c.ingredient = el.querySelector('.chem-ingredient').value.trim();
+    c.qty        = el.querySelector('.chem-qty').value.trim();
+    const umSel  = el.querySelector('.chem-um');
+    const umOther = document.getElementById('chem-um-other-qty-'+c.id);
+    c.um = umSel.value === 'Other' ? (umOther?.value.trim()||'Other') : umSel.value;
+    c.aarl       = el.querySelector('.chem-aarl').value.trim();
+    const umAarlSel = el.querySelector('.chem-um-aarl');
+    const umAarlOther = document.getElementById('chem-um-other-aarl-'+c.id);
+    c.umAarl = umAarlSel.value === 'Other' ? (umAarlOther?.value.trim()||'Other') : umAarlSel.value;
+    c.notes      = el.querySelector('.chem-notes').value.trim();
+    const tb = el.querySelector('.chem-trend-btn.inc,.chem-trend-btn.same,.chem-trend-btn.dec');
+    c.trend = tb ? tb.dataset.val : '';
+    c.monthly = [];
+    el.querySelectorAll('.chem-mg-row').forEach(row => {
+      c.monthly.push({
+        month: row.querySelector('.cmg-month').value,
+        year:  row.querySelector('.cmg-year').value,
+        value: row.querySelector('.cmg-val').value
+      });
+    });
+  });
+}
+
+function renderChemicals() {
+  const list = document.getElementById('chemical-list');
+  if (!list) return;
+  list.innerHTML = '';
+  chemicals.forEach((c,ci) => {
+    const div = document.createElement('div');
+    div.className = 'chem-block';
+    div.id = c.id;
+    div.innerHTML = `
+      <div class="chem-block-head">
+        <span class="chem-block-title">Chemical ${ci+1}</span>
+        <button type="button" class="pmap-btn" onclick="removeChemical('${c.id}')" style="color:var(--red);border-color:var(--red);padding:4px 10px;font-size:12px">✕ Remove</button>
+      </div>
+      <div class="chem-grid">
+        <div class="field-wrap" style="grid-column:1/-1">
+          <label class="lbl">Chemical Name</label>
+          <input type="text" class="chem-name" placeholder="e.g. Ficam WP, Cislin 2.5..." value="${c.name}"/>
+        </div>
+        <div class="field-wrap" style="grid-column:1/-1">
+          <label class="lbl">Active Ingredient</label>
+          <input type="text" class="chem-ingredient" placeholder="e.g. Bendiocarb 80%, Deltamethrin..." value="${c.ingredient}"/>
+        </div>
+        <div class="field-wrap" style="grid-column:1/-1">
+          <label class="lbl">Current Month Quantity Used</label>
+          <div class="chem-qty-row">
+            <input type="number" class="chem-qty" placeholder="e.g. 2.5" min="0" step="0.01" value="${c.qty}"/>
+            <select class="chem-um" onchange="toggleChemUmOther(this,'chem-um-other-qty-${c.id}')">${CHEM_UMS.map(u=>'<option'+(u===c.um?' selected':'')+'>'+u+'</option>').join('')}</select>
+          </div>
+          <input type="text" class="chem-um-other" id="chem-um-other-qty-${c.id}" placeholder="Specify unit..." value="${!CHEM_UMS.includes(c.um)&&c.um?c.um:''}" style="margin-top:6px;display:${!CHEM_UMS.includes(c.um)&&c.um?'block':'none'}"/>
+        </div>
+        <div class="field-wrap" style="grid-column:1/-1">
+          <label class="lbl">Allowed Application Rate Level (AARL) <span style="font-size:10px;color:var(--gray400);font-weight:400">— red threshold line on chart</span></label>
+          <div class="chem-qty-row">
+            <input type="number" class="chem-aarl" placeholder="e.g. 10" min="0" step="0.1" value="${c.aarl}" oninput="updateChemChart('${c.id}')"/>
+            <select class="chem-um-aarl" style="width:90px" onchange="toggleChemUmOther(this,'chem-um-other-aarl-${c.id}')">${CHEM_UMS.map(u=>'<option'+(u===c.umAarl?' selected':'')+'>'+u+'</option>').join('')}</select>
+            <span style="font-size:11px;color:var(--gray500);align-self:center;white-space:nowrap">per month</span>
+          </div>
+          <input type="text" class="chem-um-other" id="chem-um-other-aarl-${c.id}" placeholder="Specify unit..." value="${c.umAarl&&!CHEM_UMS.includes(c.umAarl)?c.umAarl:''}" style="margin-top:6px;display:${c.umAarl&&!CHEM_UMS.includes(c.umAarl)?'block':'none'}"/>
+        </div>
+      </div>
+      <div class="field-wrap" style="margin-top:10px">
+        <label class="lbl">Trend (Compared to Last Visit)</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+          <button type="button" class="chem-trend-btn${c.trend==='Increased'?' inc':''}" data-val="Increased" onclick="setChemTrend('${c.id}','Increased',this)">↑ Increased</button>
+          <button type="button" class="chem-trend-btn${c.trend==='Same'?' same':''}" data-val="Same" onclick="setChemTrend('${c.id}','Same',this)">→ Same</button>
+          <button type="button" class="chem-trend-btn${c.trend==='Decreased'?' dec':''}" data-val="Decreased" onclick="setChemTrend('${c.id}','Decreased',this)">↓ Decreased</button>
+        </div>
+      </div>
+      <div class="field-wrap" style="margin-top:10px">
+        <label class="lbl">Trend Notes</label>
+        <textarea class="chem-notes" placeholder="Observations on chemical usage trend, rotation plan, resistance notes..." style="min-height:60px">${c.notes}</textarea>
+      </div>
+      <div class="field-wrap" style="margin-top:10px">
+        <label class="lbl">Monthly Usage (12-month trend)</label>
+        <div class="chem-monthly-grid">
+          ${c.monthly.map((row,ri) => `
+          <div class="chem-mg-row">
+            <select class="cmg-month" onchange="updateChemChart('${c.id}')">
+              ${MONTHS_SHORT.map(m=>'<option'+(m===row.month?' selected':'')+'>'+m+'</option>').join('')}
+            </select>
+            <input type="number" class="cmg-year" placeholder="Year" value="${row.year}" min="2000" max="2100" oninput="updateChemChart('${c.id}')"/>
+            <input type="number" class="cmg-val" placeholder="Qty used" value="${row.value}" min="0" step="0.01" oninput="updateChemChart('${c.id}')"/>
+          </div>`).join('')}
+        </div>
+        <div class="chem-chart-wrap">
+          <canvas id="chem-chart-${c.id}" height="80"></canvas>
+        </div>
+        <p style="font-size:11px;color:var(--gray400);margin-top:4px">⚠ Red dashed line = AARL threshold</p>
+      </div>`;
+    list.appendChild(div);
+    drawChemChart(c.id);
+  });
+}
+
+function setChemTrend(id, val, btn) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.querySelectorAll('.chem-trend-btn').forEach(b => {
+    b.className = 'chem-trend-btn';
+  });
+  const c = chemicals.find(x=>x.id===id);
+  if (c && c.trend === val) {
+    c.trend = ''; // toggle off
+  } else {
+    btn.classList.add(val==='Increased'?'inc':val==='Same'?'same':'dec');
+    if (c) c.trend = val;
+  }
+}
+
+function updateChemChart(id) {
+  drawChemChart(id);
+}
+
+function drawChemChart(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const canvas = document.getElementById('chem-chart-'+id);
+  if (!canvas) return;
+  const aarlInp = el.querySelector('.chem-aarl');
+  const aarl = aarlInp ? parseFloat(aarlInp.value) : null;
+  const rows = el.querySelectorAll('.chem-mg-row');
+  const data = [];
+  rows.forEach(row => {
+    const month = row.querySelector('.cmg-month').value;
+    const year  = row.querySelector('.cmg-year').value;
+    const val   = parseFloat(row.querySelector('.cmg-val').value);
+    if (!isNaN(val)) data.push({month, year, value:val});
+  });
+  // Sort chronologically
+  data.sort((a,b) => {
+    const ya=parseInt(a.year)||0, yb=parseInt(b.year)||0;
+    if (ya!==yb) return ya-yb;
+    return MONTHS_SHORT.indexOf(a.month) - MONTHS_SHORT.indexOf(b.month);
+  });
+  const W = canvas.offsetWidth||300, H = 80;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+  if (!data.length) {
+    ctx.fillStyle='#94a3b8'; ctx.font='11px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('No data entered yet',W/2,H/2); return;
+  }
+  const vals = data.map(d=>d.value);
+  const maxVal = Math.max(aarl||0, ...vals, 1) * 1.15;
+  const pad = {l:10,r:10,t:8,b:20};
+  const cw = W-pad.l-pad.r, ch = H-pad.t-pad.b;
+  const x = i => pad.l + (i/(data.length-1||1))*cw;
+  const y = v => pad.t + ch - (v/maxVal)*ch;
+  // bars
+  const bw = Math.max(4, cw/data.length*0.6);
+  data.forEach((d,i) => {
+    const bh = (d.value/maxVal)*ch;
+    ctx.fillStyle='#93c5fd';
+    ctx.fillRect(x(i)-bw/2, pad.t+ch-bh, bw, bh);
+  });
+  // line
+  ctx.beginPath(); ctx.strokeStyle='#2563eb'; ctx.lineWidth=2; ctx.lineJoin='round';
+  data.forEach((d,i) => { i===0?ctx.moveTo(x(i),y(d.value)):ctx.lineTo(x(i),y(d.value)); });
+  ctx.stroke();
+  // dots
+  data.forEach((d,i) => {
+    ctx.beginPath(); ctx.arc(x(i),y(d.value),3,0,Math.PI*2);
+    ctx.fillStyle='#1d4ed8'; ctx.fill();
+  });
+  // AARL line
+  if (aarl && aarl > 0) {
+    const ay = y(aarl);
+    ctx.beginPath(); ctx.strokeStyle='#dc2626'; ctx.lineWidth=1.5;
+    ctx.setLineDash([5,3]); ctx.moveTo(pad.l,ay); ctx.lineTo(W-pad.r,ay); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='#dc2626'; ctx.font='bold 9px sans-serif'; ctx.textAlign='right';
+    ctx.fillText('AARL:'+aarl, W-pad.r, ay-2);
+  }
+  // x labels
+  ctx.fillStyle='#64748b'; ctx.font='9px sans-serif'; ctx.textAlign='center';
+  data.forEach((d,i) => {
+    ctx.fillText(d.month.slice(0,3)+(d.year?"'"+d.year.slice(-2):''), x(i), H-4);
+  });
+}
+
+function resetChemicals() {
+  chemicals = []; chemSeq = 0;
+  const list = document.getElementById('chemical-list');
+  if (list) list.innerHTML = '';
+}
 
 function updateSelectedPests() {
   let chips = [...document.querySelectorAll('#pest-chips .chip.on')].map(x=>x.dataset.value||x.textContent);
@@ -2300,8 +2671,41 @@ function submitAudit() {
   }
   const addlFindings = document.getElementById('a-additional-findings').value;
   if (addlFindings) {
+    // Chemical Usage
+    collectChemData();
+    if (chemicals.length) {
+      summary.innerHTML += '<p class="sum-sec">Chemical Usage</p>';
+      chemicals.forEach((c,i) => {
+        summary.innerHTML += '<p class="sum-sec" style="margin-top:8px">Chemical '+(i+1)+(c.name?' — '+c.name:'')+' </p>';
+        summary.innerHTML += row('Chemical Name', c.name||'Not provided')
+          + row('Active Ingredient', c.ingredient||'Not provided')
+          + row('Current Month Quantity Used', c.qty?(c.qty+' '+c.um):'Not provided')
+          + row('AARL', c.aarl?(c.aarl+' '+c.um+'/month'):'Not set')
+          + row('Trend', c.trend||'Not set')
+          + row('Notes', c.notes||'None');
+      });
+    }
     summary.innerHTML += '<p class="sum-sec">Additional Findings</p>';
     summary.innerHTML += row('Findings', addlFindings);
+    // Pest Resistance
+    collectResistData();
+    if (resistances.length) {
+      summary.innerHTML += '<p class="sum-sec">Pest Resistance</p>';
+      resistances.forEach((r,i) => {
+        summary.innerHTML += '<p class="sum-sec" style="margin-top:8px">Record '+(i+1)+(r.chemical?' — '+r.chemical:'')+' </p>';
+        summary.innerHTML += row('Chemical Name', r.chemical||'Not provided')
+          + row('Active Ingredient', r.ingredient||'Not provided')
+          + row('Pest Name', r.pest||'Not provided')
+          + row('Resistance Noted', r.noted||'Not selected')
+          + row('Month', (r.month&&r.monthYear)?r.month+' '+r.monthYear:r.month||r.monthYear||'Not selected')
+          + row('Chemical Changed', r.chemChanged||'Not selected');
+        if (r.chemChanged==='Yes') {
+          summary.innerHTML += row('New Chemical Name', r.newChemNote||'Not provided')
+            + row('New Active Ingredient', r.newIngredient||'Not provided');
+        }
+        if (r.notes) summary.innerHTML += row('Further Notes', r.notes);
+      });
+    }
   }
   summary.innerHTML += '<p class="sum-sec">Product Status</p>';
   const prodDamaged = getProductDetails('prod-details-damaged');
@@ -2543,6 +2947,99 @@ async function downloadPDF() {
 
     const addlFindings = document.getElementById('a-additional-findings').value;
     if (addlFindings) {
+    // CHEMICAL USAGE
+    collectChemData();
+    if (chemicals.length) {
+      secTitle('CHEMICAL USAGE');
+      chemicals.forEach((c,ci) => {
+        if (y>260){doc.addPage();y=20;}
+        doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(37,99,235);
+        doc.text('Chemical '+(ci+1)+(c.name?' — '+c.name:''), M, y); y+=5;
+        field('Active Ingredient', c.ingredient||'Not provided');
+        field('Current Month Quantity Used', c.qty?(c.qty+' '+c.um):'Not provided');
+        field('AARL', c.aarl?(c.aarl+' '+c.um+'/month'):'Not set');
+        if (c.trend) {
+          const tColor = c.trend==='Increased'?[220,38,38]:c.trend==='Decreased'?[22,163,74]:[217,119,6];
+          doc.setFont('helvetica','bold'); doc.setTextColor(...tColor);
+          doc.setFontSize(8);
+          doc.text('Trend: '+c.trend, M, y); y+=5; doc.setTextColor(15,23,42);
+        }
+        if (c.notes) field('Notes', c.notes);
+        // Mini chart
+        const validMonthly = c.monthly.filter(r=>r.value!=='');
+        if (validMonthly.length > 0) {
+          if (y>240){doc.addPage();y=20;}
+          doc.setFont('helvetica','bold'); doc.setTextColor(100,116,139); doc.setFontSize(8);
+          doc.text('Monthly Usage Trend:', M, y); y+=4;
+          const sorted = [...validMonthly].sort((a,b)=>{
+            const ya=parseInt(a.year)||0,yb=parseInt(b.year)||0;
+            if(ya!==yb)return ya-yb;
+            return MONTHS_SHORT.indexOf(a.month)-MONTHS_SHORT.indexOf(b.month);
+          });
+          const aarl = parseFloat(c.aarl)||0;
+          const vals = sorted.map(r=>parseFloat(r.value)||0);
+          const maxV = Math.max(aarl,...vals,1)*1.15;
+          const chartW=W-2*M, chartH=20, barW=chartW/sorted.length*0.6;
+          sorted.forEach((r,ri) => {
+            const bx=M+ri*(chartW/sorted.length);
+            const bh=(parseFloat(r.value)||0)/maxV*chartH;
+            doc.setFillColor(147,197,253); doc.rect(bx,y+chartH-bh,barW,bh,'F');
+          });
+          // AARL line
+          if (aarl>0) {
+            const ay=y+chartH-(aarl/maxV*chartH);
+            doc.setDrawColor(220,38,38); doc.setLineWidth(0.4);
+            doc.setLineDashPattern([1.5,1],0);
+            doc.line(M,ay,W-M,ay);
+            doc.setLineDashPattern([],0);
+            doc.setFontSize(7); doc.setTextColor(220,38,38);
+            doc.text('AARL:'+c.aarl,W-M-1,ay-1,{align:'right'});
+          }
+          y+=chartH+3;
+          // x labels
+          doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor(100,116,139);
+          sorted.forEach((r,ri) => {
+            const bx=M+ri*(chartW/sorted.length);
+            doc.text(r.month.slice(0,3)+(r.year?"'"+r.year.slice(-2):''), bx, y, {maxWidth:chartW/sorted.length});
+          });
+          y+=6;
+        }
+        y+=4;
+      });
+    }
+
+    // PEST RESISTANCE
+    collectResistData();
+    if (resistances.length) {
+      secTitle('PEST RESISTANCE');
+      resistances.forEach((r,ri) => {
+        if (y>260){doc.addPage();y=20;}
+        doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(37,99,235);
+        doc.text('Record '+(ri+1)+(r.chemical?' — '+r.chemical:''), M, y); y+=5;
+        field('Chemical Name', r.chemical||'Not provided');
+        if (r.ingredient) field('Active Ingredient', r.ingredient);
+        field('Pest Name', r.pest||'Not provided');
+        if (r.noted) {
+          const nc = r.noted==='Yes'?[220,38,38]:[22,163,74];
+          doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...nc);
+          doc.text('Resistance Noted: '+r.noted, M, y); y+=5; doc.setTextColor(15,23,42);
+        }
+        const monthLabel = (r.month&&r.monthYear)?r.month+' '+r.monthYear:(r.month||r.monthYear||'');
+        if (monthLabel) field('Month', monthLabel);
+        if (r.chemChanged) {
+          const cc = r.chemChanged==='Yes'?[220,38,38]:[22,163,74];
+          doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...cc);
+          doc.text('Chemical Changed: '+r.chemChanged, M, y); y+=5; doc.setTextColor(15,23,42);
+        }
+        if (r.chemChanged==='Yes') {
+          field('New Chemical Name', r.newChemNote||'Not provided');
+          field('New Active Ingredient', r.newIngredient||'Not provided');
+        }
+        if (r.notes) field('Further Notes', r.notes);
+        y+=4;
+      });
+    }
+
       secTitle('ADDITIONAL FINDINGS');
       const ls=doc.splitTextToSize(addlFindings,W-2*M);
       doc.setFontSize(8.5); doc.setFont('helvetica','normal'); doc.setTextColor(15,23,42);
@@ -2897,6 +3394,8 @@ function resetAudit(){
   document.querySelectorAll('.area-block').forEach(b=>b.classList.remove('checked'));
   areaRisks = {};
   areaUrgency = {};
+  resetChemicals();
+  resetResistances();
   pestTrends = {};
   selectedPests=[]; selectedRisk='';
   renderPestTrends();
