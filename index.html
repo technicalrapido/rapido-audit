@@ -716,6 +716,7 @@ function createMapState() {
     texts: [],
     pinActivity: {},
     pinActivityYears: Array.from({length:12}, ()=>String(new Date().getFullYear())),
+    pinActivityMonths: [...MONTHS_SHORT],
     drawMode: false,
     textMode: false,
     selectedLineIdx: null,
@@ -821,17 +822,12 @@ function renderMapInstanceHTML(mid) {
           <thead>
             <tr id="pmap-activity-header-${mid}">
               <th class="pact-pin-col">Pin</th>
-              <th>Jan</th><th>Feb</th><th>Mar</th><th>Apr</th><th>May</th><th>Jun</th>
-              <th>Jul</th><th>Aug</th><th>Sep</th><th>Oct</th><th>Nov</th><th>Dec</th>
-            </tr>
-            <tr id="pmap-year-row-${mid}">
-              <th class="pact-pin-col" style="font-size:9px;color:var(--gray400);font-weight:600">Year</th>
             </tr>
           </thead>
           <tbody id="pmap-activity-body-${mid}"></tbody>
         </table>
       </div>
-      <p style="font-size:11px;color:var(--gray400);margin-top:6px">Set year per column. Leave pest blank if none.</p>
+      <p style="font-size:11px;color:var(--gray400);margin-top:6px">Set month and year per column. Leave pest blank if none.</p>
     </div>`;
   container.appendChild(wrap);
 }
@@ -2056,17 +2052,20 @@ function renderActivityM(mid) {
   if (!wrap || !body) return;
   if (!m.pins.length) { wrap.style.display='none'; return; }
   wrap.style.display='block';
-  // Init year row
-  const yearRow = document.getElementById('pmap-year-row-'+mid);
-  if (yearRow && yearRow.children.length<=1) {
+  // Build dynamic month+year header columns if not already built
+  const headerRow = document.getElementById('pmap-activity-header-'+mid);
+  if (headerRow && headerRow.children.length <= 1) {
     MONTHS_SHORT.forEach((mn, i) => {
-      const th=document.createElement('th'); th.style.padding='2px';
-      th.innerHTML='<input type="number" min="2000" max="2100" step="1" value="'+m.pinActivityYears[i]+'" style="width:52px;font-size:10px;padding:2px 3px;border:1px solid var(--gray200);border-radius:4px;text-align:center" oninput="m.pinActivityYears['+i+']=this.value" placeholder="Year"/>';
-      yearRow.appendChild(th);
-    });
-    // Fix: inline m reference won't work, use proper reference
-    yearRow.querySelectorAll('input').forEach((inp,i)=>{
-      inp.oninput=function(){ mapInstances[mid].pinActivityYears[i]=this.value; };
+      const th = document.createElement('th');
+      th.style.padding = '2px';
+      th.innerHTML =
+        '<select style="font-size:10px;padding:1px 2px;border:1px solid var(--gray200);border-radius:3px;width:54px;display:block;margin:0 auto 2px" oninput="mapInstances['+mid+'].pinActivityMonths['+i+']=this.value">'
+        + MONTHS_SHORT.map(m=>'<option value="'+m+'"'+(m===mn?' selected':'')+'>'+m+'</option>').join('')
+        + '</select>'
+        + '<input type="number" min="2000" max="2100" step="1" value="'+m.pinActivityYears[i]+'" '
+        + 'style="width:52px;font-size:10px;padding:1px 3px;border:1px solid var(--gray200);border-radius:3px;text-align:center;display:block;margin:0 auto" '
+        + 'oninput="mapInstances['+mid+'].pinActivityYears['+i+']=this.value" placeholder="Year"/>';
+      headerRow.appendChild(th);
     });
   }
   body.innerHTML='';
@@ -2677,7 +2676,7 @@ async function downloadPDF() {
         doc.setFontSize(6.5); doc.setFont('helvetica','bold'); doc.setTextColor(37,99,235);
         doc.text('Pin', M+2, y+4);
         MONTHS_SHORT.forEach((mn,mni) => {
-          doc.text(mn+(mi.pinActivityYears[mni]?' '+mi.pinActivityYears[mni]:''), M+pinColW+mni*mColW+mColW/2, y+4, {align:'center'});
+          doc.text((mi.pinActivityMonths[mni]||mn)+(mi.pinActivityYears[mni]?' '+mi.pinActivityYears[mni]:''), M+pinColW+mni*mColW+mColW/2, y+4, {align:'center'});
         });
         y+=6;
         mi.pins.forEach((pin,pi) => {
