@@ -449,6 +449,17 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
       <textarea id="a-additional-findings" placeholder="Any other findings not covered under the specific areas above..."></textarea>
     </div>
 
+    <!-- Overall Risk Level -->
+    <div class="sec">
+      <div class="sec-header"><div class="sec-icon">⚠️</div><p class="sec-title">Overall Risk Level</p></div>
+      <p style="font-size:12px;color:#64748b;margin-bottom:10px;">Automatically set to the highest risk level recorded across the inspected areas above.</p>
+      <div class="risk-row">
+        <button class="risk-btn low" disabled><div class="r-dot"></div>Low</button>
+        <button class="risk-btn med" disabled><div class="r-dot"></div>Medium</button>
+        <button class="risk-btn high" disabled><div class="r-dot"></div>High</button>
+      </div>
+    </div>
+
     <!-- Chemical Usage -->
     <div class="sec" id="chemical-usage-sec">
       <div class="sec-header"><div class="sec-icon">🧪</div><p class="sec-title">Chemical Usage</p></div>
@@ -461,17 +472,6 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
       <div class="sec-header"><div class="sec-icon">🛡️</div><p class="sec-title">Pest Resistance</p></div>
       <div id="resistance-list"></div>
       <button type="button" class="pmap-btn" onclick="addResistance()" style="margin-top:8px;width:100%;border-style:dashed;font-weight:700;padding:10px">+ Add Pest Resistance Record</button>
-    </div>
-
-    <!-- Overall Risk Level -->
-    <div class="sec">
-      <div class="sec-header"><div class="sec-icon">⚠️</div><p class="sec-title">Overall Risk Level</p></div>
-      <p style="font-size:12px;color:#64748b;margin-bottom:10px;">Automatically set to the highest risk level recorded across the inspected areas above.</p>
-      <div class="risk-row">
-        <button class="risk-btn low" disabled><div class="r-dot"></div>Low</button>
-        <button class="risk-btn med" disabled><div class="r-dot"></div>Medium</button>
-        <button class="risk-btn high" disabled><div class="r-dot"></div>High</button>
-      </div>
     </div>
 
     <!-- Product Damaged -->
@@ -2979,7 +2979,20 @@ async function downloadPDF() {
       doc.text(ls,M,y); y+=ls.length*5+6;
     }
 
-    // PEST TREND ANALYSIS (moved here - after Additional Findings)
+    // OVERALL RISK LEVEL (after Additional Findings)
+    secTitle('OVERALL RISK LEVEL');
+    if (selectedRisk) {
+      const rc=RISK_COLORS[selectedRisk]||[100,100,100];
+      doc.setFillColor(...rc); doc.roundedRect(M,y-3,46,12,2,2,'F');
+      doc.setTextColor(255,255,255); doc.setFontSize(11); doc.setFont('helvetica','bold');
+      doc.text(selectedRisk,M+23,y+6,{align:'center'});
+    } else {
+      doc.setFontSize(8.5); doc.setFont('helvetica','italic'); doc.setTextColor(150,150,150);
+      doc.text('Not set', M, y);
+    }
+    y+=16;
+
+    // PEST TREND ANALYSIS (after Overall Risk Level)
     {
       secTitle('PEST TREND ANALYSIS');
       if (selectedPests.length === 0) {
@@ -3072,20 +3085,7 @@ async function downloadPDF() {
       y+=1;
     }
 
-    // OVERALL RISK LEVEL (after Pest Trend)
-    secTitle('OVERALL RISK LEVEL');
-    if (selectedRisk) {
-      const rc=RISK_COLORS[selectedRisk]||[100,100,100];
-      doc.setFillColor(...rc); doc.roundedRect(M,y-3,46,12,2,2,'F');
-      doc.setTextColor(255,255,255); doc.setFontSize(11); doc.setFont('helvetica','bold');
-      doc.text(selectedRisk,M+23,y+6,{align:'center'});
-    } else {
-      doc.setFontSize(8.5); doc.setFont('helvetica','italic'); doc.setTextColor(150,150,150);
-      doc.text('Not set', M, y);
-    }
-    y+=16;
-
-    // CHEMICAL USAGE (after Overall Risk Level)
+    // CHEMICAL USAGE
     collectChemData();
     if (chemicals.length) {
       secTitle('CHEMICAL USAGE');
@@ -3484,7 +3484,7 @@ async function downloadPDF() {
 
     const fname='Rapido_Audit_'+(document.getElementById('a-client').value.replace(/\s+/g,'_')||'Client')+'_'+dateVal+'.pdf';
     doc.save(fname);
-  } catch(err){ alert('PDF error: '+err.message); }
+  } catch(err){ alert('PDF error: '+err.message+'\n'+err.stack.split('\n').slice(0,4).join('\n')); }
   btn.disabled=false; btn.innerHTML='⬇ Download PDF Report';
 }
 
