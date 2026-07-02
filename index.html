@@ -2112,14 +2112,20 @@ function selectMapTextM(mid, idx) {
 function handleMClick(mid, e) {
   const m = mapInstances[mid];
   if (m.justPanned) { m.justPanned=false; return; }
-  if (m.selectedLineIdx!==null) return;
-  if (m.drawMode || m.draggingHandle) return;
+  if (m.draggingHandle) return;
+  // If in draw mode, clicks are handled by mouseup — don't place pins/text
+  if (m.drawMode) return;
   const canvas = getEl(mid,'canvas');
   const rect = canvas.getBoundingClientRect();
   const raw = e.touches ? e.touches[0] : e;
   const xPct = ((raw.clientX - rect.left - m.panX) / (rect.width * m.zoom)) * 100;
   const yPct = ((raw.clientY - rect.top - m.panY) / (rect.height * m.zoom)) * 100;
   if (xPct<0||xPct>100||yPct<0||yPct>100) return;
+  // If a line is selected, deselect it and let the click also place a pin/text
+  if (m.selectedLineIdx !== null) {
+    deselectLine(mid);
+    // Fall through intentionally — allow placing pin/text on same click
+  }
   if (m.textMode) {
     m.texts.push({x:xPct, y:yPct, text:'', rotation:0});
     selectMapTextM(mid, m.texts.length-1);
@@ -2181,7 +2187,7 @@ function handleMDown(mid, e) {
     e.preventDefault(); return;
   }
 
-  // Check if clicking a line body to select it
+  // Check if clicking a line body to select it (not in text mode)
   if (!m.drawMode && !m.textMode && m.lines.length) {
     const rect = m.cachedRect;
     const pct = getPctM(mid, clientX, clientY);
@@ -2194,7 +2200,7 @@ function handleMDown(mid, e) {
       const closePct=Math.hypot(pct.x-(l.x1+tc*dx), pct.y-(l.y1+tc*dy));
       // convert pct distance to pixels for threshold
       const closePx = closePct/100*rect.width;
-      if(closePx<12){
+      if(closePx<6){
         m.selectedLineIdx=li;
         m.draggingHandle=null;
         getEl(mid,'line-panel').style.display='block';
@@ -2203,8 +2209,8 @@ function handleMDown(mid, e) {
     }
   }
 
-  // Pan start (when zoomed)
-  if (m.zoom > 1 && m.selectedLineIdx===null) {
+  // Pan start (when zoomed and not in draw/text mode)
+  if (m.zoom > 1 && !m.drawMode && !m.textMode) {
     m.isPanning=true;
     m.panStart={x:clientX, y:clientY, panX:m.panX, panY:m.panY};
     getEl(mid,'canvas').classList.add('panning');
@@ -2976,7 +2982,102 @@ async function downloadPDF() {
       doc.text(ls,M,y); y+=ls.length*5+6;
     }
 
-    // CHEMICAL USAGE
+    // PEST TREND ANALYSIS (moved here - after Additional Findings)
+    {
+      secTitle('PEST TREND ANALYSIS');
+      if (selectedPests.length === 0) {
+        doc.setFontSize(8.5); doc.setFont('helvetica','italic'); doc.setTextColor(150,150,150);
+        doc.text('No pests identified', M, y); y+=7;
+      } else {
+        selectedPests.forEach(pest => {
+          const t = pestTrends[pest] || {score:5,trend:'',notes:'',monthly:[]};
+          if (y>270){doc.addPage();y=20;}
+          doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(15,23,42);
+          doc.text(pest, M, y); y+=5.5;
+          doc.setFontSize(8.5); doc.setFont('helvetica','bold'); doc.setTextColor(37,99,235);
+          doc.text('Current Activity Score: '+t.score+' / 10   |   Compared to Last Visit: '+(t.trend||'Not set'), M, y); y+=5.5;
+          if (t.notes) {
+            doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(15,23,42);
+            const ls=doc.splitTextToSize(t.notes,W-2*M);
+            doc.text(ls,M,y); y+=ls.length*4.5+2;
+          }
+          const monthsEntered = (t.monthly||[]).filter(m=>m.value!=='' && m.value!=null).length;
+          if (monthsEntered > 0) {
+            const chartW = W-2*M, chartH = chartW*(220/700);
+            if (y+chartH > 280){doc.addPage();y=20;}
+            const yearRange = getMonthlyYearRangeLabel(t.monthly);
+            doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor(100,116,139);
+            doc.text('Monthly Activity'+(yearRange?' ('+yearRange+')':'')+' - red dashed line = ETL threshold of 10', M, y); y+=4;
+            // Draw chart manually with value labels on bars
+            const monthly = t.monthly || [];
+            const sorted = [...monthly].filter(m=>m.value!==''&&m.value!=null).sort((a,b)=>{
+              const ya=parseInt(a.year)||0,yb=parseInt(b.year)||0;
+              if(ya!==yb)return ya-yb;
+              return MONTHS_SHORT.indexOf(a.month)-MONTHS_SHORT.indexOf(b.month);
+            });
+            const maxVal = Math.max(10, ...sorted.map(m=>parseFloat(m.value)||0)) * 1.2;
+            const padL=14, padR=4, padT=6, padB=14;
+            const cW=chartW-padL-padR, cH=chartH-padT-padB;
+            const colW=cW/sorted.length;
+            const bw=colW*0.6;
+            // Y grid
+            doc.setFontSize(5.5); doc.setFont('helvetica','normal'); doc.setTextColor(100,116,139);
+            [0,5,10].forEach(v=>{
+              const gy=y+padT+cH-(v/maxVal*cH);
+              doc.setDrawColor(226,232,240); doc.setLineWidth(0.2);
+              doc.line(M+padL,gy,M+padL+cW,gy);
+              doc.text(String(v),M+padL-2,gy+1.5,{align:'right'});
+            });
+            // Bars + value labels
+            sorted.forEach((m,mi)=>{
+              const val=parseFloat(m.value)||0;
+              const bh=val/maxVal*cH;
+              const bx=M+padL+mi*colW+(colW-bw)/2;
+              const exceeded=val>10;
+              doc.setFillColor(exceeded?220:37,exceeded?38:99,exceeded?38:235);
+              doc.rect(bx,y+padT+cH-bh,bw,bh,'F');
+              // Value on top of bar
+              if(val>0){
+                doc.setFontSize(5.5); doc.setFont('helvetica','bold');
+                doc.setTextColor(exceeded?220:37,exceeded?38:99,exceeded?38:235);
+                const label=val%1===0?String(val):val.toFixed(1);
+                doc.text(label,bx+bw/2,y+padT+cH-bh-1.5,{align:'center'});
+              }
+            });
+            // ETL line at 10
+            const etlY=y+padT+cH-(10/maxVal*cH);
+            doc.setDrawColor(220,38,38); doc.setLineWidth(0.5);
+            doc.setLineDashPattern([2,1.5],0);
+            doc.line(M+padL,etlY,M+padL+cW,etlY);
+            doc.setLineDashPattern([],0);
+            // X labels
+            doc.setFontSize(5.5); doc.setFont('helvetica','normal'); doc.setTextColor(100,116,139);
+            sorted.forEach((m,mi)=>{
+              const bx=M+padL+mi*colW+colW/2;
+              doc.text(m.month.slice(0,3)+(m.year?" '"+m.year.slice(-2):''),bx,y+padT+cH+padB-1,{align:'center'});
+            });
+            y += chartH + 4;
+          }
+          y+=3;
+        });
+      }
+      y+=1;
+    }
+
+    // OVERALL RISK LEVEL (after Pest Trend)
+    secTitle('OVERALL RISK LEVEL');
+    if (selectedRisk) {
+      const rc=RISK_COLORS[selectedRisk]||[100,100,100];
+      doc.setFillColor(...rc); doc.roundedRect(M,y-3,46,12,2,2,'F');
+      doc.setTextColor(255,255,255); doc.setFontSize(11); doc.setFont('helvetica','bold');
+      doc.text(selectedRisk,M+23,y+6,{align:'center'});
+    } else {
+      doc.setFontSize(8.5); doc.setFont('helvetica','italic'); doc.setTextColor(150,150,150);
+      doc.text('Not set', M, y);
+    }
+    y+=16;
+
+    // CHEMICAL USAGE (after Overall Risk Level)
     collectChemData();
     if (chemicals.length) {
       secTitle('CHEMICAL USAGE');
@@ -3094,52 +3195,7 @@ async function downloadPDF() {
       });
     }
 
-      secTitle('OVERALL RISK LEVEL');
-    if (selectedRisk) {
-      const rc=RISK_COLORS[selectedRisk]||[100,100,100];
-      doc.setFillColor(...rc); doc.roundedRect(M,y-3,46,12,2,2,'F');
-      doc.setTextColor(255,255,255); doc.setFontSize(11); doc.setFont('helvetica','bold');
-      doc.text(selectedRisk,M+23,y+6,{align:'center'});
-    } else {
-      doc.setFontSize(8.5); doc.setFont('helvetica','italic'); doc.setTextColor(150,150,150);
-      doc.text('Not set', M, y);
-    }
-    y+=16;
 
-    {
-      secTitle('PEST TREND ANALYSIS');
-      if (selectedPests.length === 0) {
-        doc.setFontSize(8.5); doc.setFont('helvetica','italic'); doc.setTextColor(150,150,150);
-        doc.text('No pests identified', M, y); y+=7;
-      } else {
-        selectedPests.forEach(pest => {
-          const t = pestTrends[pest] || {score:5,trend:'',notes:'',monthly:[]};
-          if (y>270){doc.addPage();y=20;}
-          doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(15,23,42);
-          doc.text(pest, M, y); y+=5.5;
-          doc.setFontSize(8.5); doc.setFont('helvetica','bold'); doc.setTextColor(37,99,235);
-          doc.text('Current Activity Score: '+t.score+' / 10   |   Compared to Last Visit: '+(t.trend||'Not set'), M, y); y+=5.5;
-          if (t.notes) {
-            doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(15,23,42);
-            const ls=doc.splitTextToSize(t.notes,W-2*M);
-            doc.text(ls,M,y); y+=ls.length*4.5+2;
-          }
-          const monthsEntered = (t.monthly||[]).filter(m=>m.value!=='' && m.value!=null).length;
-          if (monthsEntered > 0) {
-            const chartW = W-2*M, chartH = chartW*(220/700);
-            if (y+chartH > 280){doc.addPage();y=20;}
-            const yearRange = getMonthlyYearRangeLabel(t.monthly);
-            doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor(100,116,139);
-            doc.text('Monthly Activity'+(yearRange?' ('+yearRange+')':'')+' - red dashed line = ETL threshold of 10', M, y); y+=4;
-            try { doc.addImage(getMonthlyChartSnapshot(t.monthly), 'PNG', M, y, chartW, chartH); } catch(e){}
-            doc.setDrawColor(226,232,240); doc.setLineWidth(0.3); doc.rect(M,y,chartW,chartH);
-            y += chartH + 4;
-          }
-          y+=3;
-        });
-      }
-      y+=1;
-    }
 
 
     {
