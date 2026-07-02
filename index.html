@@ -167,6 +167,7 @@ input[type=file]{display:none;}
   display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;
   transform:translate(-50%,-50%);border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.25);cursor:pointer;}
 .pmap-pin.sel{background:var(--amber);}
+.pmap-text-label{position:absolute;font-size:12px;font-weight:600;color:var(--navy);background:rgba(255,255,255,0.88);border:1px solid var(--gray300);border-radius:4px;padding:2px 6px;white-space:nowrap;cursor:pointer;user-select:none;transform-origin:center center;}
 .pmap-empty-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   text-align:center;color:var(--gray400);font-size:12.5px;padding:20px;pointer-events:none;}
 .pmap-list{margin-top:10px;}
@@ -825,7 +826,7 @@ function renderMapInstanceHTML(mid) {
       <button type="button" class="pmap-btn pmap-zoom-btn" onclick="zoomM(${mid},0.25)">+</button>
       <button type="button" class="pmap-btn" onclick="resetZoomM(${mid})">Reset Zoom</button>
     </div>
-    <div class="pmap-canvas-wrap" id="pmap-canvas-${mid}" onclick="handleMClick(${mid},event)">
+    <div class="pmap-canvas-wrap" id="pmap-canvas-${mid}">
       <div class="pmap-empty-hint" id="pmap-empty-hint-${mid}">Tap anywhere to drop a pin</div>
       <div class="pmap-content" id="pmap-content-${mid}">
         <svg id="pmap-lines-svg-${mid}" class="pmap-lines-svg" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
@@ -1983,23 +1984,67 @@ function addPhotos(e, rowId, areaId) {
 function initMapInstance(mid) {
   const canvas = document.getElementById('pmap-canvas-'+mid);
   if (!canvas) return;
+
+  // Store touch start position so touchend can use it
+  let touchStartX = 0, touchStartY = 0, touchMoved = false;
+
   canvas.addEventListener('mousedown', e => handleMDown(mid, e));
   canvas.addEventListener('mousemove', e => handleMMove(mid, e));
   canvas.addEventListener('mouseup',   e => handleMUp(mid, e));
   canvas.addEventListener('mouseleave',e => handleMUp(mid, e));
-  canvas.addEventListener('touchstart',e => handleMDown(mid, e), {passive:false});
-  canvas.addEventListener('touchmove', e => handleMMove(mid, e), {passive:false});
-  canvas.addEventListener('touchend',  e => handleMUp(mid, e));
+  // Desktop click for pin/text placement — ignore if click originated from a button/input
+  canvas.addEventListener('click', e => {
+    if (e.target !== canvas && e.target.closest('.pmap-toolbar, .pmap-zoom-toolbar, .pmap-pin, .pmap-text-label')) return;
+    handleMClick(mid, e);
+  });
+
+  canvas.addEventListener('touchstart', e => {
+    if (e.touches.length === 1) {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      touchMoved = false;
+    }
+    handleMDown(mid, e);
+  }, {passive:false});
+
+  canvas.addEventListener('touchmove', e => {
+    if (e.touches.length === 1) {
+      const dx = Math.abs(e.touches[0].clientX - touchStartX);
+      const dy = Math.abs(e.touches[0].clientY - touchStartY);
+      if (dx > 6 || dy > 6) touchMoved = true;
+    }
+    handleMMove(mid, e);
+  }, {passive:false});
+
+  canvas.addEventListener('touchend', e => {
+    handleMUp(mid, e);
+    // Only treat as a tap (not a drag/pan)
+    if (!touchMoved && e.changedTouches.length === 1) {
+      const t = e.changedTouches[0];
+      handleMClick(mid, {
+        clientX: touchStartX,
+        clientY: touchStartY,
+        _isTap: true
+      });
+      e.preventDefault(); // prevent ghost click on mobile
+    }
+  }, {passive:false});
+
   // pinch-to-zoom
   let lastDist = null;
-  canvas.addEventListener('touchstart', e => { if(e.touches.length===2){ lastDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); } }, {passive:true});
+  canvas.addEventListener('touchstart', e => {
+    if(e.touches.length===2){
+      lastDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+    }
+  }, {passive:true});
   canvas.addEventListener('touchmove', e => {
     if(e.touches.length===2){
-      const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+      const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
       if(lastDist){ const delta=(d-lastDist)/200; zoomM(mid, delta>0?0.1:-0.1); }
       lastDist=d; e.preventDefault();
     }
   },{passive:false});
+
   renderM(mid);
 }
 
@@ -2107,6 +2152,7 @@ function selectMapTextM(mid, idx) {
   const rot = getEl(mid,'text-rotation');
   if (rot) { rot.value = t.rotation||0; getEl(mid,'rot-val').textContent=(t.rotation||0)+'°'; }
   panel.style.display='block';
+  setTimeout(()=>{ const inp=getEl(mid,'text-input'); if(inp) inp.focus(); }, 100);
 }
 
 function handleMClick(mid, e) {
@@ -2116,9 +2162,10 @@ function handleMClick(mid, e) {
   if (m.drawMode) return;
   const canvas = getEl(mid,'canvas');
   const rect = canvas.getBoundingClientRect();
-  const raw = e.touches ? e.touches[0] : e;
-  const xPct = ((raw.clientX - rect.left - m.panX) / (rect.width * m.zoom)) * 100;
-  const yPct = ((raw.clientY - rect.top - m.panY) / (rect.height * m.zoom)) * 100;
+  const clientX = e.clientX;
+  const clientY = e.clientY;
+  const xPct = ((clientX - rect.left - m.panX) / (rect.width * m.zoom)) * 100;
+  const yPct = ((clientY - rect.top - m.panY) / (rect.height * m.zoom)) * 100;
   if (xPct<0||xPct>100||yPct<0||yPct>100) return;
 
   // If a line is already selected, deselect it — then fall through to place pin/text
@@ -2300,12 +2347,55 @@ function renderTextsM(mid) {
   if (!content) return;
   content.querySelectorAll('.pmap-text-label').forEach(el=>el.remove());
   m.texts.forEach((t,i) => {
-    if(!t.text) return;
     const el=document.createElement('div');
     el.className='pmap-text-label';
-    el.style.cssText=`left:${t.x}%;top:${t.y}%;transform:translate(-50%,-50%) rotate(${t.rotation||0}deg)`;
-    el.textContent=t.text;
-    el.onclick=(e)=>{e.stopPropagation();selectMapTextM(mid,i);};
+    el.style.left = t.x+'%';
+    el.style.top  = t.y+'%';
+    el.style.transform = `translate(-50%,-50%) rotate(${t.rotation||0}deg)`;
+    el.style.background = 'rgba(255,255,255,0.92)';
+    el.style.border = '1.5px solid #93c5fd';
+    el.style.borderRadius = '4px';
+    el.style.padding = '3px 8px';
+    el.style.fontSize = '12px';
+    el.style.fontWeight = '600';
+    el.style.color = '#0f172a';
+    el.style.whiteSpace = 'nowrap';
+    el.style.cursor = 'grab';
+    el.style.userSelect = 'none';
+    el.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)';
+    el.style.transformOrigin = 'center center';
+    if(!t.text) { el.textContent='...'; el.style.opacity='0.4'; }
+    else { el.textContent=t.text; el.style.opacity='1'; }
+    // Click to select
+    el.addEventListener('click', e => { e.stopPropagation(); selectMapTextM(mid,i); });
+    // Drag to reposition
+    let dragging=false, startX=0, startY=0, startPctX=0, startPctY=0;
+    const onDragStart = e => {
+      e.stopPropagation();
+      dragging=true;
+      const raw = e.touches ? e.touches[0] : e;
+      startX=raw.clientX; startY=raw.clientY;
+      startPctX=t.x; startPctY=t.y;
+    };
+    const onDragMove = e => {
+      if(!dragging) return;
+      e.preventDefault(); e.stopPropagation();
+      const raw = e.touches ? e.touches[0] : e;
+      const rect = content.getBoundingClientRect();
+      const dx = (raw.clientX-startX)/rect.width*100;
+      const dy = (raw.clientY-startY)/rect.height*100;
+      t.x = Math.max(0,Math.min(100, startPctX+dx));
+      t.y = Math.max(0,Math.min(100, startPctY+dy));
+      el.style.left = t.x+'%';
+      el.style.top  = t.y+'%';
+    };
+    const onDragEnd = e => { if(dragging){ dragging=false; } };
+    el.addEventListener('mousedown', onDragStart);
+    el.addEventListener('touchstart', onDragStart, {passive:false});
+    document.addEventListener('mousemove', onDragMove);
+    document.addEventListener('touchmove', onDragMove, {passive:false});
+    document.addEventListener('mouseup', onDragEnd);
+    document.addEventListener('touchend', onDragEnd);
     content.appendChild(el);
   });
 }
