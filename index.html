@@ -3305,7 +3305,7 @@ async function downloadPDF() {
       });
       y+=2;
       // Monthly pest activity table
-      const hasActivity = Object.keys(mi.pinActivity).some(k => Object.values(mi.pinActivity[k]||{}).some(v=>v));
+      const hasActivity = mi.pinActivity && Object.keys(mi.pinActivity).some(k => Object.values(mi.pinActivity[k]||{}).some(v=>v));
       if (hasActivity && mi.pins.length) {
         if (y>200){doc.addPage();y=20;}
         doc.setFontSize(8.5); doc.setFont('helvetica','bold'); doc.setTextColor(100,116,139);
@@ -3315,8 +3315,11 @@ async function downloadPDF() {
         doc.setFillColor(219,234,254); doc.rect(M, y, W-2*M, 6, 'F');
         doc.setFontSize(6.5); doc.setFont('helvetica','bold'); doc.setTextColor(37,99,235);
         doc.text('Pin', M+2, y+4);
+        const pActMonths = mi.pinActivityMonths || MONTHS_SHORT;
+        const pActYears = mi.pinActivityYears || [];
         MONTHS_SHORT.forEach((mn,mni) => {
-          doc.text((mi.pinActivityMonths[mni]||mn)+(mi.pinActivityYears[mni]?' '+mi.pinActivityYears[mni]:''), M+pinColW+mni*mColW+mColW/2, y+4, {align:'center'});
+          const mLabel = (pActMonths[mni]||mn)+(pActYears[mni]?' '+pActYears[mni]:'');
+          doc.text(mLabel, M+pinColW+mni*mColW+mColW/2, y+4, {align:'center'});
         });
         y+=6;
         mi.pins.forEach((pin,pi) => {
@@ -3327,8 +3330,9 @@ async function downloadPDF() {
           doc.text(String(pi+1), M+2, y+4);
           doc.setFont('helvetica','normal'); doc.setTextColor(15,23,42);
           MONTHS_SHORT.forEach((mn,mni) => {
-            const val = (mi.pinActivity[pi]&&mi.pinActivity[pi][mni]) || '';
-            if (val) doc.text(val.slice(0,6), M+pinColW+mni*mColW+mColW/2, y+4, {align:'center'});
+            const actRow = mi.pinActivity[pi] || mi.pinActivity[String(pi)] || {};
+            const val = actRow[mni] || actRow[String(mni)] || '';
+            if (val && typeof val === 'string') doc.text(val.slice(0,6), M+pinColW+mni*mColW+mColW/2, y+4, {align:'center'});
           });
           doc.setDrawColor(226,232,240); doc.setLineWidth(0.2);
           doc.line(M, y+6, W-M, y+6);
