@@ -243,7 +243,7 @@ input[type=file]{display:none;}
 .chem-mg-row{display:grid;grid-template-columns:70px 70px 1fr;gap:6px;align-items:center;margin-bottom:5px;}
 .chem-mg-row select,.chem-mg-row input{font-size:12px;}
 .chem-chart-wrap{margin-top:8px;background:var(--gray50);border-radius:8px;padding:8px;border:1px solid var(--gray200);}
-.chem-chart-wrap canvas{width:100%;height:80px;display:block;}
+.chem-chart-wrap canvas{width:100%;height:160px;display:block;}
 .resist-block{border:1.5px solid var(--gray200);border-radius:12px;padding:14px;margin-bottom:12px;background:#fff;}
 .resist-block-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
 .resist-block-title{font-size:13px;font-weight:700;color:var(--blue2);}
@@ -714,6 +714,7 @@ const MONTHS_FULL = ['January','February','March','April','May','June','July','A
 const RISK_CLASS = {Low:'low',Medium:'med',High:'high'};
 
 let selectedPests = [], selectedRisk = "";
+let pestTrends = {}; // pestName -> { score, trend, notes, monthly: [{year,value}x12] }
 let areaRisks = {}; // item -> 'Low'|'Medium'|'High'
 let areaUrgency = {}; // id -> urgency string
 
@@ -1328,7 +1329,7 @@ function renderChemicals() {
           <input type="text" class="chem-um-other" id="chem-um-other-qty-${c.id}" placeholder="Specify unit..." value="${!CHEM_UMS.includes(c.um)&&c.um?c.um:''}" style="margin-top:6px;display:${!CHEM_UMS.includes(c.um)&&c.um?'block':'none'}"/>
         </div>
         <div class="field-wrap" style="grid-column:1/-1">
-          <label class="lbl">Allowed Application Rate Level (AARL) <span style="font-size:10px;color:var(--gray400);font-weight:400">— red threshold line on chart</span></label>
+          <label class="lbl">Allowed Application Rate Level (AARL) <span style="font-size:10px;color:var(--gray400);font-weight:400">— values above AARL turn red</span></label>
           <div class="chem-qty-row">
             <input type="number" class="chem-aarl" placeholder="e.g. 10" min="0" step="0.1" value="${c.aarl}" oninput="updateChemChart('${c.id}')"/>
             <select class="chem-um-aarl" style="width:90px" onchange="toggleChemUmOther(this,'chem-um-other-aarl-${c.id}')">${CHEM_UMS.map(u=>'<option'+(u===c.umAarl?' selected':'')+'>'+u+'</option>').join('')}</select>
@@ -1405,13 +1406,12 @@ function drawChemChart(id) {
     const val   = parseFloat(row.querySelector('.cmg-val').value);
     if (!isNaN(val)) data.push({month, year, value:val});
   });
-  // Sort chronologically
   data.sort((a,b) => {
     const ya=parseInt(a.year)||0, yb=parseInt(b.year)||0;
     if (ya!==yb) return ya-yb;
     return MONTHS_SHORT.indexOf(a.month) - MONTHS_SHORT.indexOf(b.month);
   });
-  const W = canvas.offsetWidth||300, H = 80;
+  const W = canvas.offsetWidth||320, H = 160;
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0,0,W,H);
@@ -1420,40 +1420,63 @@ function drawChemChart(id) {
     ctx.fillText('No data entered yet',W/2,H/2); return;
   }
   const vals = data.map(d=>d.value);
-  const maxVal = Math.max(aarl||0, ...vals, 1) * 1.15;
-  const pad = {l:10,r:10,t:8,b:20};
+  const maxVal = Math.max(aarl||0, ...vals, 1) * 1.2;
+  const pad = {l:38, r:14, t:10, b:28};
   const cw = W-pad.l-pad.r, ch = H-pad.t-pad.b;
-  const x = i => pad.l + (i/(data.length-1||1))*cw;
-  const y = v => pad.t + ch - (v/maxVal)*ch;
-  // bars
-  const bw = Math.max(4, cw/data.length*0.6);
+  const xPos = i => pad.l + (i+0.5)*(cw/data.length);
+  const yPos = v => pad.t + ch - (v/maxVal)*ch;
+  const bw = Math.max(6, cw/data.length*0.55);
+
+  // Y-axis grid lines and labels
+  const ySteps = 6;
+  ctx.strokeStyle='#e2e8f0'; ctx.lineWidth=0.5;
+  ctx.fillStyle='#64748b'; ctx.font='9px sans-serif'; ctx.textAlign='right';
+  for (let s=0; s<=ySteps; s++) {
+    const v = (maxVal/ySteps)*s;
+    const yy = yPos(v);
+    ctx.beginPath(); ctx.moveTo(pad.l, yy); ctx.lineTo(W-pad.r, yy); ctx.stroke();
+    ctx.fillText(v%1===0?v.toFixed(0):v.toFixed(1), pad.l-4, yy+3);
+  }
+
+  // Bars — red if exceeding AARL
   data.forEach((d,i) => {
     const bh = (d.value/maxVal)*ch;
-    ctx.fillStyle='#93c5fd';
-    ctx.fillRect(x(i)-bw/2, pad.t+ch-bh, bw, bh);
+    const exceeded = aarl && d.value > aarl;
+    ctx.fillStyle = exceeded ? '#ef4444' : '#93c5fd';
+    ctx.fillRect(xPos(i)-bw/2, pad.t+ch-bh, bw, bh);
   });
-  // line
-  ctx.beginPath(); ctx.strokeStyle='#2563eb'; ctx.lineWidth=2; ctx.lineJoin='round';
-  data.forEach((d,i) => { i===0?ctx.moveTo(x(i),y(d.value)):ctx.lineTo(x(i),y(d.value)); });
-  ctx.stroke();
-  // dots
+
+  // Line
+  ctx.beginPath(); ctx.lineWidth=2; ctx.lineJoin='round';
   data.forEach((d,i) => {
-    ctx.beginPath(); ctx.arc(x(i),y(d.value),3,0,Math.PI*2);
-    ctx.fillStyle='#1d4ed8'; ctx.fill();
+    const exceeded = aarl && d.value > aarl;
+    ctx.strokeStyle = exceeded ? '#dc2626' : '#2563eb';
+    if (i===0) ctx.moveTo(xPos(i), yPos(d.value));
+    else { ctx.stroke(); ctx.beginPath(); ctx.moveTo(xPos(i-1), yPos(data[i-1].value)); ctx.lineTo(xPos(i), yPos(d.value)); }
   });
+  ctx.stroke();
+
+  // Dots
+  data.forEach((d,i) => {
+    const exceeded = aarl && d.value > aarl;
+    ctx.beginPath(); ctx.arc(xPos(i), yPos(d.value), 3.5, 0, Math.PI*2);
+    ctx.fillStyle = exceeded ? '#dc2626' : '#1d4ed8'; ctx.fill();
+  });
+
   // AARL line
   if (aarl && aarl > 0) {
-    const ay = y(aarl);
+    const ay = yPos(aarl);
     ctx.beginPath(); ctx.strokeStyle='#dc2626'; ctx.lineWidth=1.5;
-    ctx.setLineDash([5,3]); ctx.moveTo(pad.l,ay); ctx.lineTo(W-pad.r,ay); ctx.stroke();
+    ctx.setLineDash([5,3]); ctx.moveTo(pad.l, ay); ctx.lineTo(W-pad.r, ay); ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle='#dc2626'; ctx.font='bold 9px sans-serif'; ctx.textAlign='right';
-    ctx.fillText('AARL:'+aarl, W-pad.r, ay-2);
+    ctx.fillStyle='#dc2626'; ctx.font='bold 9px sans-serif'; ctx.textAlign='left';
+    ctx.fillText('AARL:'+aarl, W-pad.r+2, ay+3);
   }
-  // x labels
+
+  // X labels
   ctx.fillStyle='#64748b'; ctx.font='9px sans-serif'; ctx.textAlign='center';
   data.forEach((d,i) => {
-    ctx.fillText(d.month.slice(0,3)+(d.year?"'"+d.year.slice(-2):''), x(i), H-4);
+    ctx.fillText(d.month.slice(0,3)+(d.year?"'"+d.year.slice(-2):''), xPos(i), H-6);
   });
 }
 
@@ -2680,7 +2703,7 @@ function submitAudit() {
         summary.innerHTML += row('Chemical Name', c.name||'Not provided')
           + row('Active Ingredient', c.ingredient||'Not provided')
           + row('Current Month Quantity Used', c.qty?(c.qty+' '+c.um):'Not provided')
-          + row('AARL', c.aarl?(c.aarl+' '+c.um+'/month'):'Not set')
+          + row('Allowed Application Rate Level (AARL)', c.aarl?(c.aarl+' '+c.um+'/month'):'Not set')
           + row('Trend', c.trend||'Not set')
           + row('Notes', c.notes||'None');
       });
@@ -2947,6 +2970,12 @@ async function downloadPDF() {
 
     const addlFindings = document.getElementById('a-additional-findings').value;
     if (addlFindings) {
+      secTitle('ADDITIONAL FINDINGS');
+      const ls=doc.splitTextToSize(addlFindings,W-2*M);
+      doc.setFontSize(8.5); doc.setFont('helvetica','normal'); doc.setTextColor(15,23,42);
+      doc.text(ls,M,y); y+=ls.length*5+6;
+    }
+
     // CHEMICAL USAGE
     collectChemData();
     if (chemicals.length) {
@@ -2954,10 +2983,13 @@ async function downloadPDF() {
       chemicals.forEach((c,ci) => {
         if (y>260){doc.addPage();y=20;}
         doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(37,99,235);
-        doc.text('Chemical '+(ci+1)+(c.name?' — '+c.name:''), M, y); y+=5;
+        doc.text('Chemical '+(ci+1)+(c.name?' - '+c.name:''), M, y); y+=5;
         field('Active Ingredient', c.ingredient||'Not provided');
         field('Current Month Quantity Used', c.qty?(c.qty+' '+c.um):'Not provided');
-        field('AARL', c.aarl?(c.aarl+' '+c.um+'/month'):'Not set');
+        doc.setFont('helvetica','bold'); doc.setTextColor(100,116,139); doc.setFontSize(8);
+        doc.text('Allowed Application Rate Level (AARL):', M, y); y+=4.5;
+        doc.setFont('helvetica','normal'); doc.setTextColor(15,23,42);
+        doc.text(c.aarl?(c.aarl+' '+(c.umAarl||c.um)+'/month'):'Not set', M+4, y); y+=5;
         if (c.trend) {
           const tColor = c.trend==='Increased'?[220,38,38]:c.trend==='Decreased'?[22,163,74]:[217,119,6];
           doc.setFont('helvetica','bold'); doc.setTextColor(...tColor);
@@ -2965,12 +2997,12 @@ async function downloadPDF() {
           doc.text('Trend: '+c.trend, M, y); y+=5; doc.setTextColor(15,23,42);
         }
         if (c.notes) field('Notes', c.notes);
-        // Mini chart
+        // Monthly chart — full size with Y-axis and red bars above AARL
         const validMonthly = c.monthly.filter(r=>r.value!=='');
         if (validMonthly.length > 0) {
-          if (y>240){doc.addPage();y=20;}
+          if (y>200){doc.addPage();y=20;}
           doc.setFont('helvetica','bold'); doc.setTextColor(100,116,139); doc.setFontSize(8);
-          doc.text('Monthly Usage Trend:', M, y); y+=4;
+          doc.text('Monthly Usage Trend:', M, y); y+=5;
           const sorted = [...validMonthly].sort((a,b)=>{
             const ya=parseInt(a.year)||0,yb=parseInt(b.year)||0;
             if(ya!==yb)return ya-yb;
@@ -2978,31 +3010,53 @@ async function downloadPDF() {
           });
           const aarl = parseFloat(c.aarl)||0;
           const vals = sorted.map(r=>parseFloat(r.value)||0);
-          const maxV = Math.max(aarl,...vals,1)*1.15;
-          const chartW=W-2*M, chartH=20, barW=chartW/sorted.length*0.6;
-          sorted.forEach((r,ri) => {
-            const bx=M+ri*(chartW/sorted.length);
-            const bh=(parseFloat(r.value)||0)/maxV*chartH;
-            doc.setFillColor(147,197,253); doc.rect(bx,y+chartH-bh,barW,bh,'F');
-          });
-          // AARL line
-          if (aarl>0) {
-            const ay=y+chartH-(aarl/maxV*chartH);
-            doc.setDrawColor(220,38,38); doc.setLineWidth(0.4);
-            doc.setLineDashPattern([1.5,1],0);
-            doc.line(M,ay,W-M,ay);
-            doc.setLineDashPattern([],0);
-            doc.setFontSize(7); doc.setTextColor(220,38,38);
-            doc.text('AARL:'+c.aarl,W-M-1,ay-1,{align:'right'});
+          const maxV = Math.max(aarl,...vals,1)*1.25;
+          const padL=14, padR=4, padT=4, padB=12;
+          const chartW=W-2*M-padL-padR, chartH=45;
+          const colW = chartW/sorted.length;
+          const bw = colW*0.55;
+          // Y-axis grid + labels
+          const ySteps=5;
+          doc.setFontSize(5.5); doc.setFont('helvetica','normal'); doc.setTextColor(100,116,139);
+          for(let s=0;s<=ySteps;s++){
+            const v=(maxV/ySteps)*s;
+            const gy=y+padT+chartH-(v/maxV*chartH);
+            doc.setDrawColor(226,232,240); doc.setLineWidth(0.2);
+            doc.line(M+padL,gy,W-M-padR,gy);
+            doc.text(v%1===0?v.toFixed(0):v.toFixed(1), M+padL-2, gy+1.5, {align:'right'});
           }
-          y+=chartH+3;
-          // x labels
-          doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor(100,116,139);
+          // Bars + value labels on top of each bar
           sorted.forEach((r,ri) => {
-            const bx=M+ri*(chartW/sorted.length);
-            doc.text(r.month.slice(0,3)+(r.year?"'"+r.year.slice(-2):''), bx, y, {maxWidth:chartW/sorted.length});
+            const bx = M+padL + ri*colW + (colW-bw)/2;
+            const val = parseFloat(r.value)||0;
+            const bh = val/maxV*chartH;
+            const exceeded = aarl>0 && val>aarl;
+            doc.setFillColor(exceeded?239:147, exceeded?68:197, exceeded?68:253);
+            doc.rect(bx, y+padT+chartH-bh, bw, bh, 'F');
+            // Value label on top of bar
+            if (val>0) {
+              doc.setFontSize(5.5); doc.setFont('helvetica','bold');
+              doc.setTextColor(exceeded?220:37, exceeded?38:99, exceeded?38:235);
+              doc.text(val%1===0?String(val):val.toFixed(1), bx+bw/2, y+padT+chartH-bh-1.5, {align:'center'});
+            }
           });
-          y+=6;
+          // AARL dashed line — label on far right outside chart area
+          if (aarl>0) {
+            const ay=y+padT+chartH-(aarl/maxV*chartH);
+            doc.setDrawColor(220,38,38); doc.setLineWidth(0.5);
+            doc.setLineDashPattern([1.5,1],0);
+            doc.line(M+padL,ay,W-M-padR,ay);
+            doc.setLineDashPattern([],0);
+            doc.setFontSize(6); doc.setTextColor(220,38,38); doc.setFont('helvetica','bold');
+            doc.text('AARL:'+c.aarl, W-M, ay+2, {align:'right'});
+          }
+          // X labels directly under each bar
+          doc.setFontSize(5.5); doc.setFont('helvetica','normal'); doc.setTextColor(100,116,139);
+          sorted.forEach((r,ri) => {
+            const bx = M+padL + ri*colW + colW/2;
+            doc.text(r.month.slice(0,3)+(r.year?"'"+r.year.slice(-2):''), bx, y+padT+chartH+padB-1, {align:'center'});
+          });
+          y += padT+chartH+padB+3;
         }
         y+=4;
       });
@@ -3015,7 +3069,7 @@ async function downloadPDF() {
       resistances.forEach((r,ri) => {
         if (y>260){doc.addPage();y=20;}
         doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(37,99,235);
-        doc.text('Record '+(ri+1)+(r.chemical?' — '+r.chemical:''), M, y); y+=5;
+        doc.text('Record '+(ri+1)+(r.chemical?' - '+r.chemical:''), M, y); y+=5;
         field('Chemical Name', r.chemical||'Not provided');
         if (r.ingredient) field('Active Ingredient', r.ingredient);
         field('Pest Name', r.pest||'Not provided');
@@ -3040,13 +3094,7 @@ async function downloadPDF() {
       });
     }
 
-      secTitle('ADDITIONAL FINDINGS');
-      const ls=doc.splitTextToSize(addlFindings,W-2*M);
-      doc.setFontSize(8.5); doc.setFont('helvetica','normal'); doc.setTextColor(15,23,42);
-      doc.text(ls,M,y); y+=ls.length*5+6;
-    }
-
-    secTitle('OVERALL RISK LEVEL');
+      secTitle('OVERALL RISK LEVEL');
     if (selectedRisk) {
       const rc=RISK_COLORS[selectedRisk]||[100,100,100];
       doc.setFillColor(...rc); doc.roundedRect(M,y-3,46,12,2,2,'F');
