@@ -1476,7 +1476,7 @@ function drawChemChart(id) {
   // X labels
   ctx.fillStyle='#64748b'; ctx.font='9px sans-serif'; ctx.textAlign='center';
   data.forEach((d,i) => {
-    ctx.fillText(d.month.slice(0,3)+(d.year?"'"+d.year.slice(-2):''), xPos(i), H-6);
+    ctx.fillText((d.month||'').slice(0,3)+(d.year?"'"+d.year.slice(-2):''), xPos(i), H-6);
   });
 }
 
@@ -2113,7 +2113,6 @@ function handleMClick(mid, e) {
   const m = mapInstances[mid];
   if (m.justPanned) { m.justPanned=false; return; }
   if (m.draggingHandle) return;
-  // If in draw mode, clicks are handled by mouseup — don't place pins/text
   if (m.drawMode) return;
   const canvas = getEl(mid,'canvas');
   const rect = canvas.getBoundingClientRect();
@@ -2121,11 +2120,31 @@ function handleMClick(mid, e) {
   const xPct = ((raw.clientX - rect.left - m.panX) / (rect.width * m.zoom)) * 100;
   const yPct = ((raw.clientY - rect.top - m.panY) / (rect.height * m.zoom)) * 100;
   if (xPct<0||xPct>100||yPct<0||yPct>100) return;
-  // If a line is selected, deselect it and let the click also place a pin/text
+
+  // If a line is already selected, deselect it — then fall through to place pin/text
   if (m.selectedLineIdx !== null) {
     deselectLine(mid);
-    // Fall through intentionally — allow placing pin/text on same click
   }
+
+  // Check if clicking a line body to select it (not in text mode, not when placing pins)
+  if (!m.textMode && m.lines.length) {
+    for (let li=m.lines.length-1; li>=0; li--) {
+      const l=m.lines[li];
+      const dx=l.x2-l.x1, dy=l.y2-l.y1, len=Math.hypot(dx,dy);
+      if(len<0.1) continue;
+      const t=((xPct-l.x1)*dx+(yPct-l.y1)*dy)/(len*len);
+      const tc=Math.max(0,Math.min(1,t));
+      const closePct=Math.hypot(xPct-(l.x1+tc*dx), yPct-(l.y1+tc*dy));
+      const closePx = closePct/100*rect.width*m.zoom;
+      if(closePx<5){
+        m.selectedLineIdx=li;
+        getEl(mid,'line-panel').style.display='block';
+        renderLinesM(mid);
+        return; // Only select the line — don't place a pin
+      }
+    }
+  }
+
   if (m.textMode) {
     m.texts.push({x:xPct, y:yPct, text:'', rotation:0});
     selectMapTextM(mid, m.texts.length-1);
@@ -2178,35 +2197,13 @@ function handleMDown(mid, e) {
     return;
   }
 
-  // Check line handle hit
+  // Check line handle hit (for dragging endpoints only)
   const hit = findNearestHandleM(mid, clientX, clientY);
   if (hit) {
     m.draggingHandle = hit;
     m.selectedLineIdx = hit.lineIdx;
     getEl(mid,'line-panel').style.display='block';
     e.preventDefault(); return;
-  }
-
-  // Check if clicking a line body to select it (not in text mode)
-  if (!m.drawMode && !m.textMode && m.lines.length) {
-    const rect = m.cachedRect;
-    const pct = getPctM(mid, clientX, clientY);
-    for (let li=m.lines.length-1; li>=0; li--) {
-      const l=m.lines[li];
-      const dx=l.x2-l.x1, dy=l.y2-l.y1, len=Math.hypot(dx,dy);
-      if(len<0.1)continue;
-      const t=((pct.x-l.x1)*dx+(pct.y-l.y1)*dy)/(len*len);
-      const tc=Math.max(0,Math.min(1,t));
-      const closePct=Math.hypot(pct.x-(l.x1+tc*dx), pct.y-(l.y1+tc*dy));
-      // convert pct distance to pixels for threshold
-      const closePx = closePct/100*rect.width;
-      if(closePx<6){
-        m.selectedLineIdx=li;
-        m.draggingHandle=null;
-        getEl(mid,'line-panel').style.display='block';
-        renderLinesM(mid); return;
-      }
-    }
   }
 
   // Pan start (when zoomed and not in draw/text mode)
@@ -3003,60 +3000,71 @@ async function downloadPDF() {
           }
           const monthsEntered = (t.monthly||[]).filter(m=>m.value!=='' && m.value!=null).length;
           if (monthsEntered > 0) {
-            const chartW = W-2*M, chartH = chartW*(220/700);
-            if (y+chartH > 280){doc.addPage();y=20;}
-            const yearRange = getMonthlyYearRangeLabel(t.monthly);
-            doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor(100,116,139);
-            doc.text('Monthly Activity'+(yearRange?' ('+yearRange+')':'')+' - red dashed line = ETL threshold of 10', M, y); y+=4;
-            // Draw chart manually with value labels on bars
             const monthly = t.monthly || [];
-            const sorted = [...monthly].filter(m=>m.value!==''&&m.value!=null).sort((a,b)=>{
-              const ya=parseInt(a.year)||0,yb=parseInt(b.year)||0;
-              if(ya!==yb)return ya-yb;
-              return MONTHS_SHORT.indexOf(a.month)-MONTHS_SHORT.indexOf(b.month);
-            });
-            const maxVal = Math.max(10, ...sorted.map(m=>parseFloat(m.value)||0)) * 1.2;
-            const padL=14, padR=4, padT=6, padB=14;
-            const cW=chartW-padL-padR, cH=chartH-padT-padB;
-            const colW=cW/sorted.length;
-            const bw=colW*0.6;
-            // Y grid
-            doc.setFontSize(5.5); doc.setFont('helvetica','normal'); doc.setTextColor(100,116,139);
-            [0,5,10].forEach(v=>{
-              const gy=y+padT+cH-(v/maxVal*cH);
-              doc.setDrawColor(226,232,240); doc.setLineWidth(0.2);
-              doc.line(M+padL,gy,M+padL+cW,gy);
-              doc.text(String(v),M+padL-2,gy+1.5,{align:'right'});
-            });
-            // Bars + value labels
-            sorted.forEach((m,mi)=>{
-              const val=parseFloat(m.value)||0;
-              const bh=val/maxVal*cH;
-              const bx=M+padL+mi*colW+(colW-bw)/2;
-              const exceeded=val>10;
-              doc.setFillColor(exceeded?220:37,exceeded?38:99,exceeded?38:235);
-              doc.rect(bx,y+padT+cH-bh,bw,bh,'F');
-              // Value on top of bar
-              if(val>0){
-                doc.setFontSize(5.5); doc.setFont('helvetica','bold');
-                doc.setTextColor(exceeded?220:37,exceeded?38:99,exceeded?38:235);
-                const label=val%1===0?String(val):val.toFixed(1);
-                doc.text(label,bx+bw/2,y+padT+cH-bh-1.5,{align:'center'});
-              }
-            });
-            // ETL line at 10
-            const etlY=y+padT+cH-(10/maxVal*cH);
-            doc.setDrawColor(220,38,38); doc.setLineWidth(0.5);
-            doc.setLineDashPattern([2,1.5],0);
-            doc.line(M+padL,etlY,M+padL+cW,etlY);
-            doc.setLineDashPattern([],0);
-            // X labels
-            doc.setFontSize(5.5); doc.setFont('helvetica','normal'); doc.setTextColor(100,116,139);
-            sorted.forEach((m,mi)=>{
-              const bx=M+padL+mi*colW+colW/2;
-              doc.text(m.month.slice(0,3)+(m.year?" '"+m.year.slice(-2):''),bx,y+padT+cH+padB-1,{align:'center'});
-            });
-            y += chartH + 4;
+            // Pest trend monthly is indexed array {year,value} — month = MONTHS_SHORT[index]
+            const sorted = monthly.map((m,i)=>({month:MONTHS_SHORT[i], year:m.year||'', value:m.value}))
+              .filter(m=>m.value!=='' && m.value!=null && String(m.value).trim()!=='');
+            if (sorted.length > 0) {
+              const chartW = W-2*M, chartH = 50;
+              if (y+chartH+20 > 280){doc.addPage();y=20;}
+              const yearRange = getMonthlyYearRangeLabel(t.monthly);
+              doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor(100,116,139);
+              doc.text('Monthly Activity'+(yearRange?' ('+yearRange+')':'')+' - red dashed line = ETL threshold of 10', M, y); y+=5;
+              const maxVal = Math.max(10, ...sorted.map(m=>parseFloat(m.value)||0)) * 1.2;
+              const padL=14, padR=4, padT=8, padB=12;
+              const cW=chartW-padL-padR, cH=chartH-padT-padB;
+              const colW=cW/sorted.length;
+              const bw=Math.max(2, colW*0.6);
+              const xPos=i=>M+padL+i*colW+colW/2;
+              const yPos=v=>y+padT+cH-(v/maxVal*cH);
+              // Y grid + labels
+              doc.setFontSize(5.5); doc.setFont('helvetica','normal'); doc.setTextColor(100,116,139);
+              [0,5,10].forEach(v=>{
+                const gy=yPos(v);
+                doc.setDrawColor(226,232,240); doc.setLineWidth(0.2);
+                doc.line(M+padL,gy,M+padL+cW,gy);
+                doc.text(String(v),M+padL-2,gy+1.5,{align:'right'});
+              });
+              // Bars
+              sorted.forEach((m,mi)=>{
+                const val=parseFloat(m.value)||0;
+                const bh=val/maxVal*cH;
+                const bx=xPos(mi)-bw/2;
+                const exceeded=val>10;
+                doc.setFillColor(exceeded?254:219, exceeded?202:234, exceeded?202:254);
+                if(bh>0) doc.rect(bx, yPos(val), bw, bh, 'F');
+              });
+              // ETL dashed line
+              const etlY=yPos(10);
+              doc.setDrawColor(220,38,38); doc.setLineWidth(0.5);
+              doc.setLineDashPattern([2,1.5],0);
+              doc.line(M+padL,etlY,M+padL+cW,etlY);
+              doc.setLineDashPattern([],0);
+              // Line + dots + value labels
+              sorted.forEach((m,mi)=>{
+                const val=parseFloat(m.value)||0;
+                const exceeded=val>10;
+                const cr=exceeded?220:37, cg=exceeded?38:99, cb=exceeded?38:235;
+                doc.setDrawColor(cr,cg,cb); doc.setLineWidth(1);
+                if(mi>0){ const pv=parseFloat(sorted[mi-1].value)||0; doc.line(xPos(mi-1),yPos(pv),xPos(mi),yPos(val)); }
+                doc.setFillColor(cr,cg,cb);
+                doc.circle(xPos(mi),yPos(val),1.2,'F');
+                if(val>0){
+                  doc.setFontSize(5.5); doc.setFont('helvetica','bold'); doc.setTextColor(cr,cg,cb);
+                  doc.text(val%1===0?String(val):val.toFixed(1), xPos(mi), yPos(val)-2, {align:'center'});
+                }
+              });
+              // X labels — month + year directly inside padB zone
+              doc.setFontSize(5); doc.setFont('helvetica','normal'); doc.setTextColor(100,116,139);
+              sorted.forEach((m,mi)=>{
+                const label = m.month.slice(0,3)+(m.year?" '"+m.year.slice(-2):'');
+                doc.text(label, xPos(mi), y+padT+cH+7, {align:'center'});
+              });
+              // Border
+              doc.setDrawColor(226,232,240); doc.setLineWidth(0.3);
+              doc.rect(M+padL, y+padT, cW, cH);
+              y += padT+cH+padB+4;
+            }
           }
           y+=3;
         });
@@ -3098,7 +3106,7 @@ async function downloadPDF() {
           doc.text('Trend: '+c.trend, M, y); y+=5; doc.setTextColor(15,23,42);
         }
         if (c.notes) field('Notes', c.notes);
-        // Monthly chart — full size with Y-axis and red bars above AARL
+        // Monthly chart — bar + line + dot style matching on-screen chart
         const validMonthly = c.monthly.filter(r=>r.value!=='');
         if (validMonthly.length > 0) {
           if (y>200){doc.addPage();y=20;}
@@ -3112,52 +3120,83 @@ async function downloadPDF() {
           const aarl = parseFloat(c.aarl)||0;
           const vals = sorted.map(r=>parseFloat(r.value)||0);
           const maxV = Math.max(aarl,...vals,1)*1.25;
-          const padL=14, padR=4, padT=4, padB=12;
-          const chartW=W-2*M-padL-padR, chartH=45;
+          const padL=14, padR=10, padT=6, padB=14;
+          const chartW=W-2*M-padL-padR, chartH=48;
           const colW = chartW/sorted.length;
           const bw = colW*0.55;
+          const xPos = i => M+padL + i*colW + colW/2;
+          const yPos = v => y+padT+chartH - (v/maxV*chartH);
+
           // Y-axis grid + labels
           const ySteps=5;
           doc.setFontSize(5.5); doc.setFont('helvetica','normal'); doc.setTextColor(100,116,139);
           for(let s=0;s<=ySteps;s++){
             const v=(maxV/ySteps)*s;
-            const gy=y+padT+chartH-(v/maxV*chartH);
+            const gy=yPos(v);
             doc.setDrawColor(226,232,240); doc.setLineWidth(0.2);
-            doc.line(M+padL,gy,W-M-padR,gy);
+            doc.line(M+padL,gy,M+padL+chartW,gy);
             doc.text(v%1===0?v.toFixed(0):v.toFixed(1), M+padL-2, gy+1.5, {align:'right'});
           }
-          // Bars + value labels on top of each bar
+
+          // Bars (light blue, red if exceeded)
           sorted.forEach((r,ri) => {
-            const bx = M+padL + ri*colW + (colW-bw)/2;
             const val = parseFloat(r.value)||0;
             const bh = val/maxV*chartH;
+            const bx = xPos(ri)-bw/2;
             const exceeded = aarl>0 && val>aarl;
-            doc.setFillColor(exceeded?239:147, exceeded?68:197, exceeded?68:253);
-            doc.rect(bx, y+padT+chartH-bh, bw, bh, 'F');
-            // Value label on top of bar
-            if (val>0) {
-              doc.setFontSize(5.5); doc.setFont('helvetica','bold');
-              doc.setTextColor(exceeded?220:37, exceeded?38:99, exceeded?38:235);
-              doc.text(val%1===0?String(val):val.toFixed(1), bx+bw/2, y+padT+chartH-bh-1.5, {align:'center'});
-            }
+            doc.setFillColor(exceeded?254:219, exceeded?202:234, exceeded?202:254);
+            doc.rect(bx, yPos(val), bw, bh, 'F');
           });
-          // AARL dashed line — label on far right outside chart area
+
+          // AARL dashed line
           if (aarl>0) {
-            const ay=y+padT+chartH-(aarl/maxV*chartH);
-            doc.setDrawColor(220,38,38); doc.setLineWidth(0.5);
-            doc.setLineDashPattern([1.5,1],0);
-            doc.line(M+padL,ay,W-M-padR,ay);
+            const ay = yPos(aarl);
+            doc.setDrawColor(220,38,38); doc.setLineWidth(0.6);
+            doc.setLineDashPattern([2,1.5],0);
+            doc.line(M+padL, ay, M+padL+chartW, ay);
             doc.setLineDashPattern([],0);
             doc.setFontSize(6); doc.setTextColor(220,38,38); doc.setFont('helvetica','bold');
-            doc.text('AARL:'+c.aarl, W-M, ay+2, {align:'right'});
+            doc.text('AARL:'+c.aarl, M+padL+chartW+1, ay+2);
           }
-          // X labels directly under each bar
+
+          // Line connecting bar tops
+          doc.setLineWidth(1.2); doc.setLineDashPattern([],0);
+          sorted.forEach((r,ri) => {
+            const val = parseFloat(r.value)||0;
+            const exceeded = aarl>0 && val>aarl;
+            doc.setDrawColor(exceeded?220:37, exceeded?38:99, exceeded?38:235);
+            if (ri>0) {
+              const prevVal = parseFloat(sorted[ri-1].value)||0;
+              doc.line(xPos(ri-1), yPos(prevVal), xPos(ri), yPos(val));
+            }
+          });
+
+          // Dots + value labels on top
+          sorted.forEach((r,ri) => {
+            const val = parseFloat(r.value)||0;
+            const exceeded = aarl>0 && val>aarl;
+            const cr = exceeded?220:37, cg = exceeded?38:99, cb = exceeded?38:235;
+            // Dot
+            doc.setFillColor(cr,cg,cb);
+            doc.circle(xPos(ri), yPos(val), 1.2, 'F');
+            // Value label above dot
+            if (val>0) {
+              doc.setFontSize(5.5); doc.setFont('helvetica','bold'); doc.setTextColor(cr,cg,cb);
+              doc.text(val%1===0?String(val):val.toFixed(1), xPos(ri), yPos(val)-2.5, {align:'center'});
+            }
+          });
+
+          // X labels directly under bars
           doc.setFontSize(5.5); doc.setFont('helvetica','normal'); doc.setTextColor(100,116,139);
           sorted.forEach((r,ri) => {
-            const bx = M+padL + ri*colW + colW/2;
-            doc.text(r.month.slice(0,3)+(r.year?"'"+r.year.slice(-2):''), bx, y+padT+chartH+padB-1, {align:'center'});
+            doc.text((r.month||'').slice(0,3)+(r.year?"'"+r.year.slice(-2):''), xPos(ri), y+padT+chartH+7, {align:'center'});
           });
-          y += padT+chartH+padB+3;
+
+          // Border around chart area
+          doc.setDrawColor(226,232,240); doc.setLineWidth(0.3);
+          doc.rect(M+padL, y+padT, chartW, chartH);
+
+          y += padT+chartH+padB+4;
         }
         y+=4;
       });
