@@ -258,6 +258,7 @@ input[type=file]{display:none;}
 .urgency-btn.short{background:#fef3c7;border-color:#d97706;color:#d97706;}
 .urgency-btn.long{background:#dcfce7;border-color:#16a34a;color:#16a34a;}
 .onsite-btn{padding:8px 20px;border-radius:8px;border:1.5px solid var(--gray200);background:#fff;color:var(--gray600);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;}
+.onsite-btn.on{background:var(--blue-lt);border-color:var(--blue2);color:var(--blue2);}
 .onsite-btn.on.yes{background:#dcfce7;border-color:#16a34a;color:#16a34a;}
 .onsite-btn.on.no{background:#fee2e2;border-color:var(--red);color:var(--red);}
 .onsite-btn.on.na{background:var(--gray100);border-color:var(--gray400);color:var(--gray600);}
@@ -338,6 +339,17 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
     <!-- Report Details -->
     <div class="sec">
       <div class="sec-header"><div class="sec-icon">🔢</div><p class="sec-title">Report Details</p></div>
+      <div class="field-wrap" style="margin-bottom:12px">
+        <label class="lbl">Audit Type</label>
+        <div style="display:flex;gap:10px;margin-top:6px;flex-wrap:wrap">
+          <button type="button" id="audit-type-amc" class="onsite-btn" onclick="setAuditType('Annual Maintenance Contract')" style="flex:1;min-width:140px">
+            📋 Annual Maintenance Contract
+          </button>
+          <button type="button" id="audit-type-ota" class="onsite-btn" onclick="setAuditType('One Time Audit')" style="flex:1;min-width:140px">
+            🔍 One Time Audit
+          </button>
+        </div>
+      </div>
       <div class="row2">
         <div class="field-wrap">
           <label class="lbl">Report No. *</label>
@@ -715,6 +727,13 @@ const MONTHS_FULL = ['January','February','March','April','May','June','July','A
 const RISK_CLASS = {Low:'low',Medium:'med',High:'high'};
 
 let selectedPests = [], selectedRisk = "";
+let auditType = '';
+
+function setAuditType(val) {
+  auditType = auditType === val ? '' : val; // toggle off if same
+  document.getElementById('audit-type-amc').className = 'onsite-btn' + (auditType === 'Annual Maintenance Contract' ? ' on' : '');
+  document.getElementById('audit-type-ota').className = 'onsite-btn' + (auditType === 'One Time Audit' ? ' on' : '');
+}
 let pestTrends = {}; // pestName -> { score, trend, notes, monthly: [{year,value}x12] }
 let areaRisks = {}; // item -> 'Low'|'Medium'|'High'
 let areaUrgency = {}; // id -> urgency string
@@ -2706,7 +2725,7 @@ function submitAudit() {
   pestTrends = collectPestTrends();
 
   summary.innerHTML = '<p class="sum-sec">Report Details</p>';
-  summary.innerHTML += row('Report No.', repno) + row('Date', date);
+  summary.innerHTML += (auditType?row('Audit Type', auditType):'') + row('Report No.', repno) + row('Date', date);
   const contractNo = document.getElementById('a-contractno').value.trim();
   if (contractNo) summary.innerHTML += row('Contract No.', contractNo);
   summary.innerHTML += row('Audit Report Period', getPeriodLabel());
@@ -2921,6 +2940,7 @@ async function downloadPDF() {
     }
 
     secTitle('REPORT DETAILS');
+    if (auditType) field('Audit Type', auditType);
     field('Report No.', repno);
     field('Date', dateVal);
     const contractNo = document.getElementById('a-contractno').value.trim();
@@ -3634,7 +3654,9 @@ function resetAudit(){
   resetChemicals();
   resetResistances();
   pestTrends = {};
-  selectedPests=[]; selectedRisk='';
+  selectedPests=[]; selectedRisk=''; auditType='';
+  document.getElementById('audit-type-amc').className='onsite-btn';
+  document.getElementById('audit-type-ota').className='onsite-btn';
   renderPestTrends();
   staffIdPhoto = null;
   document.getElementById('staff-id-preview').src = '';
