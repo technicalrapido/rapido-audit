@@ -3745,7 +3745,9 @@ let pinEntry = '';
 if (!PIN_HASH || sessionStorage.getItem('rpc_unlocked') === PIN_HASH) {
   document.getElementById('pin-screen').style.display = 'none';
   document.getElementById('audit').style.display = 'block';
-  setTimeout(checkDraftBanner, 300);
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    setTimeout(checkDraftBanner, 200);
+  }));
 }
 
 function pinPress(digit) {
@@ -3788,7 +3790,10 @@ async function pinSubmit() {
 function unlockForm() {
   document.getElementById('pin-screen').style.display = 'none';
   document.getElementById('audit').style.display = 'block';
-  setTimeout(checkDraftBanner, 400);
+  // Wait for next two animation frames to ensure DOM is fully rendered
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    setTimeout(checkDraftBanner, 200);
+  }));
 }
 
 async function sha256(message) {
@@ -3906,15 +3911,27 @@ function saveFormState() {
 function restoreFormState() {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
-    if (!raw) return false;
+    if (!raw) { console.log('No draft found'); return false; }
     const state = JSON.parse(raw);
-    if (!state || state.v !== 2) return false;
+    if (!state) { console.log('Invalid draft data'); return false; }
+    console.log('Restoring draft v'+state.v, state);
 
-    // Text fields
+    // Pause auto-save during restore to avoid overwriting draft
+    clearTimeout(saveTimer);
+
+    // Text fields — don't trigger input events (avoids re-saving mid-restore)
     if (state.texts) Object.keys(state.texts).forEach(id => {
       const el = document.getElementById(id);
-      if (el) { el.value = state.texts[id]; el.dispatchEvent(new Event('input')); }
+      if (el) el.value = state.texts[id];
     });
+
+    // Trigger specific handlers that need values
+    const rpcRep = document.getElementById('a-rpc-rep');
+    if (rpcRep && state.texts?.['a-rpc-rep']) {
+      rpcRep.dispatchEvent(new Event('change'));
+    }
+    const hsIncWrap = document.getElementById('hs-incident-wrap');
+    if (state.hsVal === 'Yes' && hsIncWrap) hsIncWrap.style.display = 'block';
 
     // Pest chips
     if (state.pestOn) {
