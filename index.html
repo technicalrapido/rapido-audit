@@ -3035,7 +3035,10 @@ async function downloadPDF() {
       doc.setFontSize(8.5); doc.setFont('helvetica','italic'); doc.setTextColor(150,150,150);
       doc.text('No areas inspected', M, y); y+=7;
     } else {
+      let areaSubNum = 0; // sub-number counter e.g. 5.1, 5.2...
       function renderAreaToPDF(label, id, riskKey, isCustom) {
+        areaSubNum++;
+        const subLabel = sectionNum + '.' + areaSubNum;
         const findings = document.getElementById('findings-'+id).value;
         const reco = document.getElementById('reco-'+id).value;
         const actionTaken = isCustom ? '' : document.getElementById('action-taken-'+id).value;
@@ -3043,12 +3046,12 @@ async function downloadPDF() {
         const risk = areaRisks[riskKey];
 
         if (y>262){doc.addPage();y=20;}
-        // area name with green checkmark
-        doc.setDrawColor(22,163,74); doc.setLineWidth(0.6);
-        doc.line(M+0.5, y-1.6, M+1.5, y-0.6);
-        doc.line(M+1.5, y-0.6, M+3.3, y-2.8);
+        // area sub-number badge + name
+        doc.setFillColor(37,99,235); doc.roundedRect(M, y-4, 10, 6, 1, 1, 'F');
+        doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(6.5);
+        doc.text(subLabel, M+5, y, {align:'center'});
         doc.setTextColor(15,23,42); doc.setFont('helvetica','bold'); doc.setFontSize(9.5);
-        doc.text(label, M+8, y);
+        doc.text(label, M+13, y);
 
         // risk badge to the right
         if (risk) {
