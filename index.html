@@ -3154,17 +3154,6 @@ async function downloadPDF() {
     // OVERALL RISK LEVEL (after Additional Findings)
     secTitle('OVERALL RISK LEVEL');
     if (selectedRisk) {
-      // Ensure enough space for badge + phrase before rendering
-      if (y > 255) { doc.addPage(); y = 20; }
-      const rc=RISK_COLORS[selectedRisk]||[100,100,100];
-      doc.setFillColor(...rc); doc.roundedRect(M,y-3,46,12,2,2,'F');
-      doc.setTextColor(255,255,255); doc.setFontSize(11); doc.setFont('helvetica','bold');
-      doc.text(selectedRisk,M+23,y+6,{align:'center'});
-      // Explanatory phrase next to badge
-      doc.setFont('helvetica','italic'); doc.setFontSize(7.5); doc.setTextColor(100,116,139);
-      doc.text('Based on the highest risk level recorded across all inspected areas.', M+50, y+5);
-      y+=16;
-
       // Build risk breakdown by level
       const highAreas=[], medAreas=[], lowAreas=[];
       INSPECTION_AREAS.forEach(item => {
