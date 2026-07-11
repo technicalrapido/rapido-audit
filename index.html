@@ -755,7 +755,10 @@ const PEST_ICONS = {
 function pestIcon(pest){ return PEST_ICONS[pest] || "🐾"; }
 const PRODUCTS = [
   "Rodent Bait Station","Electronic Fly Killer","Electronic Fly Killer Glue Board",
-  "Snap/Trex/Mechanical Trap","Mosquitoes Traps","Bird Spike","Bird Shock","Bird Net"
+  "Snap/Trex/Mechanical Trap","Mosquitoes Traps","Bird Spike","Bird Shock","Bird Net",
+  "Rat Glue Board","Lizard Glue Board","Insect Monitoring Trap","Snake Trap",
+  "Fly Trap Reusable","Fly Trap Disposable","Sticky Roll For Fly",
+  "Multi Purpose Bait Station","Green Protective Rat Box"
 ];
 const PRODUCT_COLORS = {
   "Rodent Bait Station":        "#2563eb", // blue
@@ -766,6 +769,15 @@ const PRODUCT_COLORS = {
   "Bird Spike":                 "#16a34a", // green
   "Bird Shock":                 "#d97706", // amber
   "Bird Net":                   "#db2777", // pink
+  "Rat Glue Board":             "#0891b2", // cyan
+  "Lizard Glue Board":          "#65a30d", // lime
+  "Insect Monitoring Trap":     "#c026d3", // fuchsia
+  "Snake Trap":                 "#334155", // slate
+  "Fly Trap Reusable":          "#0d9488", // teal
+  "Fly Trap Disposable":        "#b91c1c", // dark red
+  "Sticky Roll For Fly":        "#ca8a04", // gold
+  "Multi Purpose Bait Station": "#1d4ed8", // indigo-blue
+  "Green Protective Rat Box":   "#15803d", // dark green
   "__default__":                "#475569"  // dark grey for custom/Other
 };
 const INSPECTION_AREAS = [
@@ -3165,9 +3177,10 @@ async function downloadPDF() {
       });
       customAreas.forEach(ca => {
         const r = areaRisks[ca.id];
-        if (r==='High') highAreas.push(ca.name||'Other');
-        else if (r==='Medium') medAreas.push(ca.name||'Other');
-        else if (r==='Low') lowAreas.push(ca.name||'Other');
+        const caName = document.getElementById('a-area-other-'+ca.id)?.value.trim() || 'Other';
+        if (r==='High') highAreas.push(caName);
+        else if (r==='Medium') medAreas.push(caName);
+        else if (r==='Low') lowAreas.push(caName);
       });
 
       if (highAreas.length||medAreas.length||lowAreas.length) {
