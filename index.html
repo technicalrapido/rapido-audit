@@ -2986,10 +2986,21 @@ async function downloadPDF() {
 
     y = HDR_H + 10;
 
+    // Unified page-break handling: BOTTOM is the lowest a content baseline may sit
+    // before the footer band (drawn at y=285 later). Keeping one constant means every
+    // section ends with the same consistent gap above the footer, and needSpace() lets
+    // us reserve room for a whole block (label + text + chart) BEFORE any of it is drawn,
+    // so a block's heading never gets stranded on one page while its body jumps to the next.
+    const BOTTOM = 273;
+    function needSpace(h) {
+      if (y + h > BOTTOM) { doc.addPage(); y = 20; return true; }
+      return false;
+    }
+
     let sectionNum = 0;
-    function secTitle(t) {
+    function secTitle(t, followH) {
       sectionNum++;
-      if (y>252){doc.addPage();y=20;}
+      needSpace(18 + (followH||0));
       doc.setFillColor(219,234,254); doc.rect(M-2,y-5,W-2*M+4,10,'F');
       doc.setFillColor(37,99,235); doc.rect(M-2,y-5,3,10,'F');
       doc.setTextColor(30,64,175); doc.setFontSize(9.5); doc.setFont('helvetica','bold');
@@ -3001,14 +3012,14 @@ async function downloadPDF() {
       doc.setFontSize(8.5); doc.setFont('helvetica','normal'); doc.setTextColor(15,23,42);
       const lines=doc.splitTextToSize(val||'Not provided',W-M-62);
       const neededH = Math.max(6, lines.length*5) + 1;
-      if (y + neededH > 274){doc.addPage();y=20;}
+      needSpace(neededH);
       doc.setFont('helvetica','bold'); doc.setTextColor(100,116,139);
       doc.text(lbl+':',M,y);
       doc.setFont('helvetica','normal'); doc.setTextColor(15,23,42);
       doc.text(lines,62,y); y+=neededH;
     }
 
-    secTitle('REPORT DETAILS');
+    secTitle('REPORT DETAILS', 10);
     if (auditType) field('Audit Type', auditType);
     field('Report No.', repno);
     field('Date', dateVal);
@@ -3017,7 +3028,7 @@ async function downloadPDF() {
     field('Audit Report Period', getPeriodLabel());
     y+=2;
 
-    secTitle('CLIENT & PROPERTY DETAILS');
+    secTitle('CLIENT & PROPERTY DETAILS', 10);
     field('Client Name', document.getElementById('a-client').value);
     field('Property Name', document.getElementById('a-property').value);
     field('Location', document.getElementById('a-location').value);
@@ -3028,7 +3039,7 @@ async function downloadPDF() {
     field('RPC Representative', rpcRepVal === '__new__' ? (document.getElementById('sig-input').value.trim() || 'New Staff') : rpcRepVal);
     y+=2;
 
-    secTitle('PEST ISSUE(S) IDENTIFIED (COVERED)');
+    secTitle('PEST ISSUE(S) IDENTIFIED (COVERED)', 8);
     doc.setFontSize(8.5); doc.setFont('helvetica','normal'); doc.setTextColor(15,23,42);
     const pestText = selectedPests.length ? selectedPests.join(' • ') : 'None identified';
     const pestLines = doc.splitTextToSize(pestText, W-2*M);
@@ -3036,7 +3047,7 @@ async function downloadPDF() {
 
     {
       const pestNotCovered = getPestNotCovered();
-      secTitle('PEST ISSUE(S) IDENTIFIED (NOT COVERED)');
+      secTitle('PEST ISSUE(S) IDENTIFIED (NOT COVERED)', 8);
       field('Pest Not Covered', pestNotCovered.length ? pestNotCovered.join(', ') : 'None');
       y+=3;
     }
@@ -3044,7 +3055,7 @@ async function downloadPDF() {
     // CHECKLIST — only show CHECKED items in PDF, unchecked items are omitted entirely
     const checkedAreas = INSPECTION_AREAS.filter(item=>document.getElementById('chk-'+item)?.checked);
 
-    secTitle('DETAILED INSPECTION');
+    secTitle('DETAILED INSPECTION', (checkedAreas.length || customAreas.length) ? 15 : 8);
     if (checkedAreas.length === 0 && customAreas.length === 0) {
       doc.setFontSize(8.5); doc.setFont('helvetica','italic'); doc.setTextColor(150,150,150);
       doc.text('No areas inspected', M, y); y+=7;
@@ -3059,7 +3070,7 @@ async function downloadPDF() {
         const action = document.getElementById('action-'+id).value;
         const risk = areaRisks[riskKey];
 
-        if (y>255){doc.addPage();y=20;}
+        if (needSpace(10)) {}
         // area sub-number badge + name
         doc.setFillColor(37,99,235); doc.roundedRect(M, y-4, 10, 6, 1, 1, 'F');
         doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(6.5);
@@ -3080,7 +3091,7 @@ async function downloadPDF() {
         doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(15,23,42);
         if (findings) {
           const ls=doc.splitTextToSize(findings,W-2*M-8);
-          if (y+5+ls.length*4.5>274){doc.addPage();y=20;}
+          needSpace(5+ls.length*4.5);
           doc.setFont('helvetica','bold'); doc.setTextColor(100,116,139);
           doc.text('Findings:',M+8,y);
           doc.setFont('helvetica','normal'); doc.setTextColor(15,23,42);
@@ -3088,7 +3099,7 @@ async function downloadPDF() {
         }
         if (actionTaken) {
           const ls=doc.splitTextToSize(actionTaken,W-2*M-8);
-          if (y+5+ls.length*4.5>274){doc.addPage();y=20;}
+          needSpace(5+ls.length*4.5);
           doc.setFont('helvetica','bold'); doc.setTextColor(100,116,139);
           doc.text('Action Taken by RPC:',M+8,y);
           doc.setFont('helvetica','normal'); doc.setTextColor(15,23,42);
@@ -3096,20 +3107,20 @@ async function downloadPDF() {
         }
         if (action) {
           const ls=doc.splitTextToSize(action,W-2*M-8);
-          if (y+5+ls.length*4.5>274){doc.addPage();y=20;}
+          needSpace(5+ls.length*4.5);
           doc.setFont('helvetica','bold'); doc.setTextColor(100,116,139);
           doc.text('Further Action Required by RPC:',M+8,y);
           doc.setFont('helvetica','normal'); doc.setTextColor(15,23,42);
           doc.text(ls,M+8,y+4.5); y+=4.5+ls.length*4.5;
         }
         if (reco || areaUrgency[id]) {
-          if (y+14>274){doc.addPage();y=20;}
+          needSpace(14);
           doc.setFont('helvetica','bold'); doc.setTextColor(100,116,139);
           doc.text('Recommendation for Client Action:',M+8,y); y+=4.5;
           // urgency badge
           const urg = areaUrgency[id];
           if (urg) {
-            if (y+8>274){doc.addPage();y=20;}
+            needSpace(8);
             const urgColor = urg==='Immediate (24hrs)' ? [220,38,38] : urg==='Short-term (7 days)' ? [217,119,6] : [22,163,74];
             doc.setFillColor(...urgColor); doc.setTextColor(255,255,255);
             doc.setFontSize(7.5); doc.setFont('helvetica','bold');
@@ -3120,20 +3131,20 @@ async function downloadPDF() {
           }
           if (reco) {
             const ls=doc.splitTextToSize(reco,W-2*M-8);
-            if (y+ls.length*4.5>274){doc.addPage();y=20;}
+            needSpace(ls.length*4.5);
             doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(15,23,42);
             doc.text(ls,M+8,y); y+=ls.length*4.5;
           }
         }
         const photos = areaPhotos[id] || [];
         if (photos.length) {
-          if (y>274){doc.addPage();y=20;}
+          needSpace(4.5);
           doc.setFont('helvetica','bold'); doc.setTextColor(100,116,139); doc.setFontSize(8);
           doc.text('Photos:',M+8,y); y+=4.5;
           let px=M+8,py=y,iW=30,iH=24,gap=4;
           for(let i=0;i<photos.length;i++){
             if(px+iW>W-M){px=M+8;py+=iH+gap;}
-            if(py+iH>278){doc.addPage();py=20;px=M+8;}
+            if(py+iH>BOTTOM+5){doc.addPage();py=20;px=M+8;}
             try{doc.addImage(photos[i],'JPEG',px,py,iW,iH);}catch(e){}
             doc.setDrawColor(147,197,253); doc.setLineWidth(0.3); doc.rect(px,py,iW,iH);
             px+=iW+gap;
@@ -3157,23 +3168,24 @@ async function downloadPDF() {
 
     const addlFindings = document.getElementById('a-additional-findings').value;
     if (addlFindings) {
-      secTitle('ADDITIONAL FINDINGS');
+      secTitle('ADDITIONAL FINDINGS', 8);
       const ls=doc.splitTextToSize(addlFindings,W-2*M);
       doc.setFontSize(8.5); doc.setFont('helvetica','normal'); doc.setTextColor(15,23,42);
       doc.text(ls,M,y); y+=ls.length*5+6;
     }
 
     // OVERALL RISK LEVEL (after Additional Findings)
-    secTitle('OVERALL RISK LEVEL');
+    secTitle('OVERALL RISK LEVEL', 10);
     if (selectedRisk) {
       // Build risk breakdown by level
       const highAreas=[], medAreas=[], lowAreas=[];
       INSPECTION_AREAS.forEach(item => {
         if (!document.getElementById('chk-'+item)?.checked) return;
         const r = areaRisks[item];
-        if (r==='High') highAreas.push(item);
-        else if (r==='Medium') medAreas.push(item);
-        else if (r==='Low') lowAreas.push(item);
+        const label = areaLabel(item);
+        if (r==='High') highAreas.push(label);
+        else if (r==='Medium') medAreas.push(label);
+        else if (r==='Low') lowAreas.push(label);
       });
       customAreas.forEach(ca => {
         const r = areaRisks[ca.id];
@@ -3184,7 +3196,7 @@ async function downloadPDF() {
       });
 
       if (highAreas.length||medAreas.length||lowAreas.length) {
-        if (y>250){doc.addPage();y=20;}
+        needSpace(7);
         // Table header
         const tW=W-2*M, col1=28, col2=tW-col1;
         doc.setFillColor(241,245,249); doc.rect(M,y,tW,7,'F');
@@ -3202,11 +3214,10 @@ async function downloadPDF() {
         ];
         rows.forEach(row => {
           if (!row.areas.length) return;
-          if (y>274){doc.addPage();y=20;}
           const areaText = row.areas.join(', ');
           const lines = doc.splitTextToSize(areaText, col2-4);
           const rowH = Math.max(7, lines.length*4.5+3);
-          // Row background
+          needSpace(rowH);
           doc.setFillColor(255,255,255); doc.rect(M,y,tW,rowH,'F');
           // Risk level cell with color dot
           doc.setFillColor(...row.color); doc.circle(M+5, y+rowH/2, 2.5, 'F');
@@ -3221,7 +3232,7 @@ async function downloadPDF() {
           doc.line(M+col1,y,M+col1,y+rowH);
           y+=rowH;
         });
-        y+=4;
+        y+=10;
       }
     } else {
       doc.setFontSize(8.5); doc.setFont('helvetica','italic'); doc.setTextColor(150,150,150);
@@ -3231,38 +3242,56 @@ async function downloadPDF() {
 
     // PEST TREND ANALYSIS (after Overall Risk Level)
     {
-      secTitle('PEST TREND ANALYSIS');
+      // Height calculator shared by the pre-header reservation and the per-pest loop,
+      // so a pest's title+score+chart always page-break as one unit — and the section
+      // header itself is only printed if the FIRST pest block will actually follow it.
+      function pestBlockCalc(pest) {
+        const t = pestTrends[pest] || {score:5,trend:'',notes:'',monthly:[]};
+        let notesLines = [];
+        if (t.notes) {
+          doc.setFontSize(8); doc.setFont('helvetica','normal');
+          notesLines = doc.splitTextToSize(t.notes, W-2*M);
+        }
+        const monthly = t.monthly || [];
+        const sorted = monthly.map((m,i)=>({month:MONTHS_SHORT[i], year:m.year||'', value:m.value}))
+          .filter(m=>m.value!=='' && m.value!=null && String(m.value).trim()!=='');
+        const hasChart = sorted.length > 0;
+        const chartW = W-2*M, chartH = 50;
+        const padL=14, padR=4, padT=8, padB=12;
+        const cW=chartW-padL-padR, cH=chartH-padT-padB;
+        let blockH = 5.5 + 5.5; // title + score lines
+        if (t.notes) blockH += notesLines.length*4.5+2;
+        if (hasChart) blockH += 5 + padT+cH+padB+4; // "Monthly Activity" label + chart
+        blockH += 3; // trailing gap
+        return {t, notesLines, sorted, hasChart, chartW, chartH, padL, padR, padT, padB, cW, cH, blockH};
+      }
+
+      secTitle('PEST TREND ANALYSIS', selectedPests.length ? Math.min(pestBlockCalc(selectedPests[0]).blockH, BOTTOM-38) : 0);
       if (selectedPests.length === 0) {
         doc.setFontSize(8.5); doc.setFont('helvetica','italic'); doc.setTextColor(150,150,150);
         doc.text('No pests identified', M, y); y+=7;
       } else {
         selectedPests.forEach(pest => {
-          const t = pestTrends[pest] || {score:5,trend:'',notes:'',monthly:[]};
-          if (y>274){doc.addPage();y=20;}
+          const calc = pestBlockCalc(pest);
+          const {t, notesLines, sorted, hasChart, padL, padT, padB, cW, cH, blockH} = calc;
+
+          // A block taller than a full page can't ever "fit" — in that case just
+          // start it fresh on a new page rather than looping forever.
+          needSpace(Math.min(blockH, BOTTOM-20));
+
           doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(15,23,42);
           doc.text(pest, M, y); y+=5.5;
           doc.setFontSize(8.5); doc.setFont('helvetica','bold'); doc.setTextColor(37,99,235);
           doc.text('Current Activity Score: '+t.score+' / 10   |   Compared to Last Visit: '+(t.trend||'Not set'), M, y); y+=5.5;
           if (t.notes) {
             doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(15,23,42);
-            const ls=doc.splitTextToSize(t.notes,W-2*M);
-            doc.text(ls,M,y); y+=ls.length*4.5+2;
+            doc.text(notesLines,M,y); y+=notesLines.length*4.5+2;
           }
-          const monthsEntered = (t.monthly||[]).filter(m=>m.value!=='' && m.value!=null).length;
-          if (monthsEntered > 0) {
-            const monthly = t.monthly || [];
-            // Pest trend monthly is indexed array {year,value} — month = MONTHS_SHORT[index]
-            const sorted = monthly.map((m,i)=>({month:MONTHS_SHORT[i], year:m.year||'', value:m.value}))
-              .filter(m=>m.value!=='' && m.value!=null && String(m.value).trim()!=='');
-            if (sorted.length > 0) {
-              const chartW = W-2*M, chartH = 50;
-              if (y+chartH+8 > 268){doc.addPage();y=20;}
+          if (hasChart) {
               const yearRange = getMonthlyYearRangeLabel(t.monthly);
               doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor(100,116,139);
               doc.text('Monthly Activity'+(yearRange?' ('+yearRange+')':'')+' - red dashed line = ETL threshold of 10', M, y); y+=5;
               const maxVal = Math.max(10, ...sorted.map(m=>parseFloat(m.value)||0)) * 1.2;
-              const padL=14, padR=4, padT=8, padB=12;
-              const cW=chartW-padL-padR, cH=chartH-padT-padB;
               const colW=cW/sorted.length;
               const bw=Math.max(2, colW*0.6);
               const xPos=i=>M+padL+i*colW+colW/2;
@@ -3314,7 +3343,6 @@ async function downloadPDF() {
               doc.setDrawColor(226,232,240); doc.setLineWidth(0.3);
               doc.rect(M+padL, y+padT, cW, cH);
               y += padT+cH+padB+4;
-            }
           }
           y+=3;
         });
@@ -3325,9 +3353,9 @@ async function downloadPDF() {
     // CHEMICAL USAGE
     collectChemData();
     if (chemicals.length) {
-      secTitle('CHEMICAL USAGE');
+      secTitle('CHEMICAL USAGE', 20);
       chemicals.forEach((c,ci) => {
-        if (y>274){doc.addPage();y=20;}
+        needSpace(5);
         doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(37,99,235);
         doc.text('Chemical '+(ci+1)+(c.name?' - '+c.name:''), M, y); y+=5;
         field('Active Ingredient', c.ingredient||'Not provided');
@@ -3346,7 +3374,9 @@ async function downloadPDF() {
         // Monthly chart — bar + line + dot style matching on-screen chart
         const validMonthly = c.monthly.filter(r=>r.value!=='');
         if (validMonthly.length > 0) {
-          if (y>200){doc.addPage();y=20;}
+          const padL=14, padR=10, padT=6, padB=14;
+          const chartW=W-2*M-padL-padR, chartH=48;
+          needSpace(5 + padT+chartH+padB+4); // label + full chart block, kept together
           doc.setFont('helvetica','bold'); doc.setTextColor(100,116,139); doc.setFontSize(8);
           doc.text('Monthly Usage Trend:', M, y); y+=5;
           const sorted = [...validMonthly].sort((a,b)=>{
@@ -3357,8 +3387,6 @@ async function downloadPDF() {
           const aarl = parseFloat(c.aarl)||0;
           const vals = sorted.map(r=>parseFloat(r.value)||0);
           const maxV = Math.max(aarl,...vals,1)*1.25;
-          const padL=14, padR=10, padT=6, padB=14;
-          const chartW=W-2*M-padL-padR, chartH=48;
           const colW = chartW/sorted.length;
           const bw = colW*0.55;
           const xPos = i => M+padL + i*colW + colW/2;
@@ -3442,9 +3470,9 @@ async function downloadPDF() {
     // PEST RESISTANCE
     collectResistData();
     if (resistances.length) {
-      secTitle('PEST RESISTANCE');
+      secTitle('PEST RESISTANCE', 15);
       resistances.forEach((r,ri) => {
-        if (y>274){doc.addPage();y=20;}
+        needSpace(5);
         doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(37,99,235);
         doc.text('Record '+(ri+1)+(r.chemical?' - '+r.chemical:''), M, y); y+=5;
         field('Chemical Name', r.chemical||'Not provided');
@@ -3481,7 +3509,7 @@ async function downloadPDF() {
       const prodOtherDamaged = getProdOtherValues('prod-other-damaged-list');
       const prodOtherMissing = getProdOtherValues('prod-other-missing-list');
       const prodOtherRequired = getProdOtherValues('prod-other-required-list');
-      secTitle('PRODUCT STATUS');
+      secTitle('PRODUCT STATUS', 15);
       field('Product Damaged', formatProductList([...prodDamaged, ...prodOtherDamaged]));
       field('Product Missing', formatProductList([...prodMissing, ...prodOtherMissing]));
       field('Product Required', formatProductList([...prodRequired, ...prodOtherRequired]));
@@ -3494,7 +3522,10 @@ async function downloadPDF() {
       const mi = mapInstances[mid];
       const mapSnapshot = await getMapSnapshotM(mid);
       if (!mapSnapshot && !mi.pins.length) continue;
-      if(y>180){doc.addPage();y=20;}
+      const mapW = W-2*M, mapH = mapW*(675/900);
+      // Reserve room for the section header AND the map image together, so the
+      // heading never sits alone on one page while the image jumps to the next.
+      needSpace(18 + (mapSnapshot ? mapH+6 : 0));
       secTitle('PRODUCT MAP'+(mapInstances.length>1?' '+(mid+1):''));
       const mapTitle = mi.title || document.getElementById('pmap-title-'+mid)?.value?.trim() || '';
       if (mapTitle) {
@@ -3502,7 +3533,6 @@ async function downloadPDF() {
         doc.text(mapTitle, M, y); y+=6;
       }
       if (mapSnapshot) {
-        const mapW = W-2*M, mapH = mapW*(675/900);
         try { doc.addImage(mapSnapshot,'PNG',M,y,mapW,mapH); } catch(e){}
         doc.setDrawColor(147,197,253); doc.setLineWidth(0.4); doc.rect(M,y,mapW,mapH);
         y += mapH + 6;
@@ -3510,7 +3540,7 @@ async function downloadPDF() {
       // Pin legend
       const usedProds = [...new Set(mi.pins.map(p=>p.product).filter(Boolean))];
       if (usedProds.length) {
-        if(y>265){doc.addPage();y=20;}
+        needSpace(5);
         doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor(100,116,139);
         doc.text('Pin Legend:', M, y); y+=5;
         let lx = M;
@@ -3527,16 +3557,16 @@ async function downloadPDF() {
         y+=7;
       }
       mi.pins.forEach((pin,i) => {
-        if (y>274){doc.addPage();y=20;}
+        const notesLs = pin.notes ? doc.splitTextToSize('Notes: '+pin.notes,W-2*M) : [];
+        needSpace(10 + notesLs.length*4.5 + 3);
         const pinColor = getPinColor(pin.product);
         const pr=parseInt(pinColor.slice(1,3),16), pg=parseInt(pinColor.slice(3,5),16), pb=parseInt(pinColor.slice(5,7),16);
         doc.setFontSize(8.5); doc.setFont('helvetica','bold'); doc.setTextColor(pr,pg,pb);
         doc.text('Pin '+(i+1)+': '+pin.product, M, y); y+=5;
         doc.setFont('helvetica','normal'); doc.setTextColor(15,23,42);
         doc.text('Area: '+(pin.area||'Not specified'), M, y); y+=5;
-        if (pin.notes) {
-          const ls=doc.splitTextToSize('Notes: '+pin.notes,W-2*M);
-          doc.text(ls,M,y); y+=ls.length*4.5;
+        if (notesLs.length) {
+          doc.text(notesLs,M,y); y+=notesLs.length*4.5;
         }
         y+=3;
       });
@@ -3544,7 +3574,7 @@ async function downloadPDF() {
       // Monthly pest activity table
       const hasActivity = mi.pinActivity && Object.keys(mi.pinActivity).some(k => Object.values(mi.pinActivity[k]||{}).some(v=>v));
       if (hasActivity && mi.pins.length) {
-        if (y>200){doc.addPage();y=20;}
+        needSpace(11); // header label + table header row, kept together
         doc.setFontSize(8.5); doc.setFont('helvetica','bold'); doc.setTextColor(100,116,139);
         doc.text('Monthly Pest Activity by Pin', M, y); y+=5;
         const pinColW = (W-2*M)*0.12;
@@ -3560,7 +3590,7 @@ async function downloadPDF() {
         });
         y+=6;
         mi.pins.forEach((pin,pi) => {
-          if (y>275){doc.addPage();y=20;}
+          needSpace(6);
           doc.setFillColor(pi%2===0?248:255,pi%2===0?250:255,pi%2===0?255:255);
           doc.rect(M, y, W-2*M, 6, 'F');
           doc.setFontSize(6.5); doc.setFont('helvetica','bold'); doc.setTextColor(37,99,235);
@@ -3581,7 +3611,7 @@ async function downloadPDF() {
 
     // ONSITE FOLDER
     {
-      secTitle('ONSITE FOLDER');
+      secTitle('ONSITE FOLDER', 10);
       const onsiteVal = document.getElementById('onsite-folder-val').value || 'Not selected';
       const onsiteObs = document.getElementById('onsite-observations').value.trim();
       field('Onsite folder updated?', onsiteVal);
@@ -3591,7 +3621,7 @@ async function downloadPDF() {
 
     // HEALTH & SAFETY
     {
-      secTitle('HEALTH & SAFETY');
+      secTitle('HEALTH & SAFETY', 10);
       const hsVal = document.getElementById('hs-val').value || 'Not selected';
       const hsIncident = document.getElementById('hs-incident').value.trim();
       field('RPC Health & Safety Issue(s)', hsVal);
@@ -3603,12 +3633,12 @@ async function downloadPDF() {
     {
       const summaryText = document.getElementById('audit-summary-text')?.value.trim();
       if (summaryText && document.getElementById('audit-summary-output')?.style.display !== 'none') {
-        secTitle('AUDIT SUMMARY');
+        secTitle('AUDIT SUMMARY', 10);
         doc.setFontSize(8.5); doc.setFont('helvetica','normal'); doc.setTextColor(15,23,42);
         const paras = summaryText.split('\n\n').filter(Boolean);
         paras.forEach(para => {
           const lines = doc.splitTextToSize(para, W-2*M);
-          if (y + lines.length*4.8 > 275) { doc.addPage(); y=20; }
+          needSpace(lines.length*4.8);
           doc.text(lines, M, y);
           y += lines.length*4.8 + 3;
         });
@@ -3618,7 +3648,8 @@ async function downloadPDF() {
 
     // THIS RPC TECHNICAL AUDIT IS PREPARED BY
     {
-      if(y>230){doc.addPage();y=20;}
+      const blockH = 60;
+      needSpace(18 + blockH); // header + the full signature block, kept together
       secTitle('THIS RPC TECHNICAL AUDIT IS PREPARED BY:');
 
       const name = document.getElementById('sig-input').value.trim();
@@ -3627,7 +3658,6 @@ async function downloadPDF() {
       const phone = document.getElementById('sig-phone').value.trim();
       const email = document.getElementById('sig-email').value.trim();
 
-      const blockH = 60;
       const leftW = (W-2*M)*0.58, rightW = (W-2*M)*0.42;
       const divX = M + leftW;
 
