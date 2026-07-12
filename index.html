@@ -86,6 +86,13 @@ textarea{min-height:80px;resize:vertical;}
 .chip{padding:6px 12px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--gray200);background:#fff;color:var(--gray600);transition:all .15s;}
 .chip-other{border-style:dashed;border-color:var(--blue-mid);color:var(--blue2);background:var(--blue-lt);}
 .chip-other.on{background:var(--blue2);color:#fff;border-color:var(--blue2);border-style:solid;}
+.attach-row{border:1.5px solid var(--gray200);border-radius:10px;padding:10px;margin-bottom:10px;background:var(--gray50);display:flex;gap:10px;align-items:flex-start;}
+.attach-thumb{width:52px;height:52px;border-radius:8px;background:var(--gray200);flex-shrink:0;overflow:hidden;border:1px solid var(--gray200);}
+.attach-thumb img{width:100%;height:100%;object-fit:cover;}
+.attach-body{flex:1;min-width:0;}
+.attach-body input{margin-bottom:5px;font-size:13px;padding:7px 9px;}
+.attach-meta{font-size:11px;color:var(--gray400);}
+.attach-remove{background:none;border:none;color:#dc2626;font-size:18px;cursor:pointer;padding:2px 6px;flex-shrink:0;line-height:1;}
 .other-pest-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
 .other-pest-row .gform-input{flex:1;margin-bottom:0;}
 .other-pest-del{background:none;border:none;color:var(--red);font-size:20px;cursor:pointer;line-height:1;padding:0 4px;flex-shrink:0;}
@@ -404,7 +411,10 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
       <div class="row2">
         <div class="field-wrap">
           <label class="lbl">Report No. *</label>
-          <input type="text" id="a-reportno" placeholder="e.g. RPC-AR-2026-001"/>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input type="text" id="a-reportno" placeholder="e.g. RPC-AR-2026-001" style="flex:1;"/>
+            <button type="button" onclick="document.getElementById('a-reportno').value=generateReportNo();scheduleSave&&scheduleSave();" title="Generate a new unique report number" style="flex-shrink:0;padding:8px 10px;border-radius:8px;border:1.5px solid #cbd5e1;background:#f8fafc;cursor:pointer;font-size:14px;line-height:1;">🔄</button>
+          </div>
         </div>
         <div class="field-wrap">
           <label class="lbl">Date *</label>
@@ -414,6 +424,19 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
       <div class="field-wrap" style="margin-top:11px">
         <label class="lbl">Contract No.</label>
         <input type="text" id="a-contractno" placeholder="e.g. CTR-2026-001"/>
+      </div>
+      <div class="field-wrap" style="margin-top:11px">
+        <label class="lbl">RPC Representative *</label>
+        <select id="a-rpc-rep" onchange="autoFillPreparedBy(this.value)">
+          <option value="">Select auditor</option>
+          <option value="Marino Lasdacan">Marino Lasdacan</option>
+          <option value="Arnold Tusay">Arnold Tusay</option>
+          <option value="Shakeel Ahmed">Shakeel Ahmed</option>
+          <option value="Afzal Chughtai">Afzal Chughtai</option>
+          <option value="Suyaparan">Suyaparan</option>
+          <option value="Musthak Lebbe">Musthak Lebbe</option>
+          <option value="__new__">+ New / Unlisted Staff</option>
+        </select>
       </div>
     </div>
 
@@ -448,31 +471,16 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
         <label class="lbl">Location / Address</label>
         <input type="text" id="a-location" placeholder="Full address"/>
       </div>
-      <div class="row2">
-        <div class="field-wrap">
-          <label class="lbl">Client Representative</label>
-          <div style="display:flex;gap:6px;align-items:center">
-            <select id="a-client-rep-title" style="width:80px;flex-shrink:0">
-              <option value="">--</option>
-              <option value="Mr">Mr</option>
-              <option value="Ms">Ms</option>
-              <option value="Mr/Ms">Mr/Ms</option>
-            </select>
-            <input type="text" id="a-client-rep" placeholder="Client contact name" style="flex:1"/>
-          </div>
-        </div>
-        <div class="field-wrap">
-          <label class="lbl">RPC Representative *</label>
-          <select id="a-rpc-rep" onchange="autoFillPreparedBy(this.value)">
-            <option value="">Select auditor</option>
-            <option value="Marino Lasdacan">Marino Lasdacan</option>
-            <option value="Arnold Tusay">Arnold Tusay</option>
-            <option value="Shakeel Ahmed">Shakeel Ahmed</option>
-            <option value="Afzal Chughtai">Afzal Chughtai</option>
-            <option value="Suyaparan">Suyaparan</option>
-            <option value="Musthak Lebbe">Musthak Lebbe</option>
-            <option value="__new__">+ New / Unlisted Staff</option>
+      <div class="field-wrap">
+        <label class="lbl">Client Representative</label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <select id="a-client-rep-title" style="width:80px;flex-shrink:0">
+            <option value="">--</option>
+            <option value="Mr">Mr</option>
+            <option value="Ms">Ms</option>
+            <option value="Mr/Ms">Mr/Ms</option>
           </select>
+          <input type="text" id="a-client-rep" placeholder="Client contact name" style="flex:1"/>
         </div>
       </div>
     </div>
@@ -694,6 +702,15 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
           <a href="https://rapido.com.qa/contact/" target="_blank" class="prepared-link">rapido.com.qa/contact/</a>
         </div>
       </div>
+    </div>
+
+    <!-- Supporting Documents -->
+    <div class="sec">
+      <div class="sec-header"><div class="sec-icon">📎</div><p class="sec-title">Supporting Documents (Optional)</p></div>
+      <p style="font-size:11.5px;color:var(--gray400);margin:-8px 0 14px;line-height:1.5;">Attach photos, scanned forms, or certificates. PNG / JPEG only — for a page from a PDF, attach a photo of that page. Each file gets its own page at the end of the report.</p>
+      <div id="supporting-docs-list"></div>
+      <input type="file" id="supporting-docs-input" accept="image/png,image/jpeg" multiple style="display:none" onchange="addSupportingDocs(event)"/>
+      <button type="button" onclick="document.getElementById('supporting-docs-input').click()" style="width:100%;padding:11px;border-radius:10px;border:1.5px dashed var(--blue-mid);background:var(--blue-lt);color:var(--blue2);font-weight:700;font-size:13.5px;cursor:pointer;font-family:inherit;">+ Add Photo / Scan</button>
     </div>
 
     <button class="submit-btn" onclick="submitAudit()">Submit Audit Report →</button>
@@ -1889,6 +1906,7 @@ function autoFillPreparedBy(name) {
   document.getElementById('sig-designation').value = staff.designation;
   document.getElementById('sig-phone').value = staff.phone;
   document.getElementById('sig-email').value = staff.email;
+  try { localStorage.setItem('rpc_last_staff_no', staff.staffNo); } catch(e) {}
   if (staff.photo) {
     staffIdPhoto = staff.photo;
     document.getElementById('staff-id-preview').src = staff.photo;
@@ -2035,6 +2053,70 @@ function removeStaffIdPhoto() {
   document.getElementById('staff-id-upload').classList.remove('has-photo');
   document.getElementById('staff-id-remove-btn').classList.remove('visible');
   document.getElementById('staff-id-input').value = '';
+}
+
+/* ===== SUPPORTING DOCUMENTS (attachments appended after the signature page) ===== */
+let supportingDocs = []; // [{id, name, dataUrl}]
+let supportingDocSeq = 0;
+
+function addSupportingDocs(e) {
+  const files = Array.from(e.target.files);
+  files.forEach(f => {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      // Downscale large photos before storing — these are often full-resolution
+      // camera shots of documents, and keeping them at original size would bloat
+      // both the autosave draft (localStorage has a hard size limit) and the PDF.
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 1600;
+        let w = img.width, h = img.height;
+        if (w > maxDim || h > maxDim) {
+          const scale = maxDim / Math.max(w, h);
+          w = Math.round(w * scale); h = Math.round(h * scale);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        const name = f.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ');
+        supportingDocs.push({ id: 'sd' + (++supportingDocSeq), name, dataUrl });
+        renderSupportingDocs();
+        scheduleSave();
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(f);
+  });
+  e.target.value = '';
+}
+
+function removeSupportingDoc(id) {
+  supportingDocs = supportingDocs.filter(d => d.id !== id);
+  renderSupportingDocs();
+  scheduleSave();
+}
+
+function updateSupportingDocName(id, val) {
+  const d = supportingDocs.find(d => d.id === id);
+  if (d) d.name = val;
+  scheduleSave();
+}
+
+function renderSupportingDocs() {
+  const listEl = document.getElementById('supporting-docs-list');
+  if (!listEl) return;
+  listEl.innerHTML = supportingDocs.map(d => `
+    <div class="attach-row">
+      <div class="attach-thumb"><img src="${d.dataUrl}"/></div>
+      <div class="attach-body">
+        <input type="text" value="${d.name.replace(/"/g,'&quot;')}" placeholder="File name / label"
+               oninput="updateSupportingDocName('${d.id}', this.value)"/>
+        <div class="attach-meta">Will print as its own page</div>
+      </div>
+      <button type="button" class="attach-remove" onclick="removeSupportingDoc('${d.id}')" title="Remove">✕</button>
+    </div>
+  `).join('');
 }
 
 function renumberPhotos(rowId) {
@@ -2978,6 +3060,7 @@ async function downloadPDF() {
     doc.text('PEST CONTROL AUDIT REPORT', (M+60+W-M)/2, 19, {align:'center'});
 
     const dateVal = document.getElementById('a-date').value;
+    const dateDisplay = dateVal ? dateVal.split('-').reverse().join('-') : '';
     const repno   = document.getElementById('a-reportno').value;
     // Address block — under the logo
     doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor(71,85,105);
@@ -3022,9 +3105,11 @@ async function downloadPDF() {
     secTitle('REPORT DETAILS', 10);
     if (auditType) field('Audit Type', auditType);
     field('Report No.', repno);
-    field('Date', dateVal);
+    field('Date', dateDisplay);
     const contractNo = document.getElementById('a-contractno').value.trim();
     if (contractNo) field('Contract No.', contractNo);
+    const rpcRepVal = document.getElementById('a-rpc-rep').value;
+    field('RPC Representative', rpcRepVal === '__new__' ? (document.getElementById('sig-input').value.trim() || 'New Staff') : rpcRepVal);
     field('Audit Report Period', getPeriodLabel());
     y+=2;
 
@@ -3035,8 +3120,6 @@ async function downloadPDF() {
     const clientRepTitle = document.getElementById('a-client-rep-title').value;
     const clientRepName = document.getElementById('a-client-rep').value;
     field('Client Representative', ((clientRepTitle ? clientRepTitle+' ' : '') + clientRepName).trim());
-    const rpcRepVal = document.getElementById('a-rpc-rep').value;
-    field('RPC Representative', rpcRepVal === '__new__' ? (document.getElementById('sig-input').value.trim() || 'New Staff') : rpcRepVal);
     y+=2;
 
     secTitle('PEST ISSUE(S) IDENTIFIED (COVERED)', 8);
@@ -3257,7 +3340,7 @@ async function downloadPDF() {
           .filter(m=>m.value!=='' && m.value!=null && String(m.value).trim()!=='');
         const hasChart = sorted.length > 0;
         const chartW = W-2*M, chartH = 50;
-        const padL=14, padR=4, padT=8, padB=12;
+        const padL=14, padR=10, padT=8, padB=12;
         const cW=chartW-padL-padR, cH=chartH-padT-padB;
         let blockH = 5.5 + 5.5; // title + score lines
         if (t.notes) blockH += notesLines.length*4.5+2;
@@ -3319,6 +3402,8 @@ async function downloadPDF() {
               doc.setLineDashPattern([2,1.5],0);
               doc.line(M+padL,etlY,M+padL+cW,etlY);
               doc.setLineDashPattern([],0);
+              doc.setFontSize(6); doc.setTextColor(220,38,38); doc.setFont('helvetica','bold');
+              doc.text('ETL:10', M+padL+cW+1, etlY+2);
               // Line + dots + value labels
               sorted.forEach((m,mi)=>{
                 const val=parseFloat(m.value)||0;
@@ -3741,6 +3826,43 @@ async function downloadPDF() {
       y += 8;
     }
 
+    // SUPPORTING DOCUMENTS — dedicated cover page + one page per attachment
+    if (supportingDocs.length) {
+      doc.addPage(); y = 20;
+      sectionNum++;
+      // Cover page
+      doc.setTextColor(37,99,235); doc.setFontSize(8); doc.setFont('helvetica','bold');
+      doc.text('SECTION '+sectionNum, W/2, 120, {align:'center'});
+      doc.setTextColor(10,22,40); doc.setFontSize(20); doc.setFont('helvetica','bold');
+      doc.text('Supporting Documents', W/2, 132, {align:'center'});
+      doc.setDrawColor(37,99,235); doc.setLineWidth(1);
+      doc.line(W/2-15, 138, W/2+15, 138);
+      doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(150,150,150);
+      doc.text('Additional photos, forms, and reference material for this audit', W/2, 148, {align:'center'});
+      doc.text('follow on the pages after this cover.', W/2, 154, {align:'center'});
+
+      supportingDocs.forEach((docItem, i) => {
+        doc.addPage(); y = 20;
+        doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(37,99,235);
+        doc.text('SUPPORTING DOCUMENT '+(i+1)+' OF '+supportingDocs.length, M, y); y += 6;
+        doc.setFontSize(10.5); doc.setFont('helvetica','bold'); doc.setTextColor(15,23,42);
+        doc.text(docItem.name || 'Untitled', M, y); y += 3;
+        doc.setDrawColor(226,232,240); doc.setLineWidth(0.3);
+        doc.line(M, y, W-M, y); y += 6;
+
+        // Fit the image within the remaining page area, preserving aspect ratio
+        const boxW = W-2*M, boxTop = y, boxBottom = BOTTOM;
+        const boxH = boxBottom - boxTop;
+        try {
+          const props = doc.getImageProperties(docItem.dataUrl);
+          const ratio = Math.min(boxW/props.width, boxH/props.height);
+          const drawW = props.width*ratio, drawH = props.height*ratio;
+          const drawX = M + (boxW-drawW)/2, drawY = boxTop + (boxH-drawH)/2;
+          doc.addImage(docItem.dataUrl, 'JPEG', drawX, drawY, drawW, drawH);
+        } catch(e) {}
+      });
+    }
+
     // FOOTER — page number + report number + copyright
     const pages=doc.getNumberOfPages();
     for(let p=1;p<=pages;p++){
@@ -3803,6 +3925,10 @@ function resetAudit(){
     if (photoRow) photoRow.querySelectorAll('.photo-wrap').forEach(w=>w.remove());
   });
   areaPhotos = {};
+  supportingDocs = [];
+  supportingDocSeq = 0;
+  const supDocsList = document.getElementById('supporting-docs-list');
+  if (supDocsList) supDocsList.innerHTML = '';
   document.getElementById('custom-areas').innerHTML = '';
   customAreas = [];
   document.getElementById('add-other-area-btn').style.display = 'none';
@@ -3912,10 +4038,35 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'Enter') pinSubmit();
 });
 
+// ===== AUTO REPORT NUMBER =====
+// Builds a report number that's unique per device+session without needing a server:
+// RPC-<staff tag>-<YYMMDD>-<HHMM><2 random base36 chars>
+// The staff tag comes from whoever last signed a report on this device (stored locally),
+// so even if two supervisors' phones happen to generate a number in the same minute,
+// their staff tag + random suffix keeps the two numbers apart.
+function generateReportNo() {
+  const now = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  const yy = String(now.getFullYear()).slice(-2);
+  const stamp = yy + pad(now.getMonth()+1) + pad(now.getDate()) + '-' + pad(now.getHours()) + pad(now.getMinutes());
+  const rand = Math.random().toString(36).slice(2,4).toUpperCase();
+  let staffTag = 'XX';
+  try {
+    const saved = localStorage.getItem('rpc_last_staff_no');
+    if (saved) staffTag = saved;
+  } catch(e) {}
+  return 'RPC-' + staffTag + '-' + stamp + rand;
+}
+
 initChips();
 // Initialize first map instance
 addMapInstance();
 document.getElementById('a-date').value = new Date().toISOString().split('T')[0];
+// Give every fresh visit its own report number so supervisors don't have to type one in
+// (if a saved draft exists, the "Restore" banner below will overwrite this with the old number)
+if (!document.getElementById('a-reportno').value.trim()) {
+  document.getElementById('a-reportno').value = generateReportNo();
+}
 
 (function initPeriod(){
   const curYM = new Date().toISOString().slice(0,7);
@@ -4002,7 +4153,7 @@ function saveFormState() {
       riskOn, areas, trendsData, prodDamaged, prodMissing, prodRequired,
       onsiteVal, hsVal, mapsData,
       chemicals, resistances, auditType,
-      staffIdPhoto, areaPhotos,
+      staffIdPhoto, areaPhotos, supportingDocs,
       customAreas, selectedPests,
       auditSummaryVisible: document.getElementById('audit-summary-output')?.style.display !== 'none'
     };
@@ -4113,6 +4264,16 @@ function restoreFormState() {
 
     // Area photos
     if (state.areaPhotos) areaPhotos = state.areaPhotos;
+
+    // Supporting documents
+    if (state.supportingDocs) {
+      supportingDocs = state.supportingDocs;
+      supportingDocSeq = supportingDocs.reduce((max, d) => {
+        const n = parseInt((d.id || '').replace('sd', ''), 10);
+        return isNaN(n) ? max : Math.max(max, n);
+      }, 0);
+      renderSupportingDocs();
+    }
 
     // Map instances
     if (state.mapsData && state.mapsData.length) {
